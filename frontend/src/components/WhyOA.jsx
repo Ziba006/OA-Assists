@@ -30,7 +30,7 @@ const features = [
 
 export default function WhyOA() {
   return (
-    <section id={HOME_SECTIONS.about} className="scroll-mt-20 py-16 sm:py-20">
+    <section id={HOME_SECTIONS.about} className="scroll-mt-24 py-16 sm:py-20">
       <Container>
         <SectionHeading
           eyebrow="Why OA Assist"
@@ -42,12 +42,12 @@ export default function WhyOA() {
           {features.map(({ icon: Icon, title, description }) => (
             <div
               key={title}
-              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card"
+              className="rounded-2xl border border-line bg-surface-warm p-6 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:border-plum-200 hover:shadow-lift"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-50 text-accent-700">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-plum-50 text-plum-700">
                 <Icon className="h-5 w-5" aria-hidden="true" />
               </div>
-              <h3 className="mt-4 text-base font-semibold text-ink-900">{title}</h3>
+              <h3 className="mt-4 text-base font-semibold text-sage-900">{title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-ink-500">{description}</p>
             </div>
           ))}

@@ -16,6 +16,33 @@ or AI model integration is included yet.
 - React Router 7
 - lucide-react icons
 
+## Design system — Sage + Plum + Cream
+
+All colors are CSS variables defined in the `@theme` block of
+`src/index.css`, so the palette can be rethemed in one place.
+
+| Token                       | Value     | Usage                        |
+| --------------------------- | --------- | ---------------------------- |
+| `--color-sage-900`          | `#24382F` | Sidebar, dark surfaces       |
+| `--color-sage-600`          | `#5F6F52` | Secondary sage, active state |
+| `--color-sage-300`          | `#A9B8A0` | Light sage, muted dark text  |
+| `--color-plum-500`          | `#8B5E83` | Primary accent / CTAs        |
+| `--color-plum-700`          | `#68445F` | Primary hover                |
+| `--color-plum-300`          | `#D8C3D5` | Soft lavender accent         |
+| `--color-surface` / cream   | `#F7F4ED` | Page background              |
+| `--color-surface-warm`      | `#FFFDF9` | Cards                        |
+| `--color-line`              | `#E4DED3` | Card and section borders     |
+| `--color-ink-900`           | `#202820` | Main text                    |
+| `--color-ink-500`           | `#667066` | Muted text                   |
+| `--color-success-500`       | `#6F9275` | Completed states             |
+| `--color-warning-500`       | `#C69A4A` | Warnings                     |
+| `--color-error-500`         | `#B85C5C` | Errors                       |
+
+Application pages use the dark sage left sidebar (`src/layouts/AppLayout.jsx`
++ `src/components/AppSidebar.jsx`); public pages keep the landing navbar
+(`src/layouts/PublicLayout.jsx`).
+
+
 ## Getting started
 
 ```bash

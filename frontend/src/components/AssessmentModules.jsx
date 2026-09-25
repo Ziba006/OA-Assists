@@ -32,7 +32,7 @@ const modules = [
 
 export default function AssessmentModules() {
   return (
-    <section id={HOME_SECTIONS.modules} className="scroll-mt-20 py-16 sm:py-20">
+    <section id={HOME_SECTIONS.modules} className="scroll-mt-24 py-16 sm:py-20">
       <Container>
         <SectionHeading
           eyebrow="Assessment modules"

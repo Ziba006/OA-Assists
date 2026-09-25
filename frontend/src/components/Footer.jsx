@@ -2,10 +2,17 @@ import { Link } from 'react-router-dom'
 import Logo from './Logo'
 import { HOME_SECTIONS, ROUTES } from '../routes'
 
-const productLinks = [
+const exploreLinks = [
+  { label: 'Home', to: ROUTES.home },
+  { label: 'How It Works', to: `${ROUTES.home}#${HOME_SECTIONS.howItWorks}` },
+  { label: 'About', to: `${ROUTES.home}#${HOME_SECTIONS.about}` },
+]
+
+const assessmentLinks = [
   { label: 'X-Ray', to: ROUTES.xray },
   { label: 'Gait', to: ROUTES.gait },
   { label: 'Symptoms', to: ROUTES.symptoms },
+  { label: 'Dashboard', to: ROUTES.dashboard },
 ]
 
 const legalLinks = [
@@ -13,84 +20,58 @@ const legalLinks = [
   { label: 'Disclaimer', to: `${ROUTES.home}#${HOME_SECTIONS.disclaimer}` },
 ]
 
+const linkClass = 'text-sm text-sage-200/80 transition-colors duration-200 hover:text-plum-200'
+
+function FooterColumn({ title, links }) {
+  return (
+    <nav aria-label={`Footer ${title}`}>
+      <h2 className="text-xs font-semibold tracking-[0.16em] text-sage-300/80 uppercase">
+        {title}
+      </h2>
+      <ul className="mt-4 space-y-2.5">
+        {links.map((link) => (
+          <li key={`${title}-${link.label}`}>
+            <Link className={linkClass} to={link.to}>
+              {link.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
+
 export default function Footer() {
   return (
-    <footer className="border-t border-slate-200 bg-white">
-      <div className="container-page grid gap-10 py-12 md:grid-cols-4">
+    <footer className="bg-sage-900 text-cream">
+      <div className="container-page grid gap-10 py-14 md:grid-cols-4">
         <div className="md:col-span-2">
-          <Logo />
-          <p className="mt-4 max-w-sm text-sm leading-relaxed text-ink-500">
-            OA Assist provides AI-assisted preliminary assessment and does not replace
-            evaluation or diagnosis by a qualified healthcare professional.
+          <Logo variant="onDark" />
+          <p className="mt-5 max-w-sm text-sm leading-relaxed text-plum-100/70">
+            OA Assist provides AI-assisted preliminary assessment and does not replace evaluation
+            or diagnosis by a qualified healthcare professional.
+          </p>
+          <p className="mt-4 inline-flex items-center gap-2 rounded-full border border-cream/10 bg-cream/5 px-3 py-1 text-xs text-sage-200/80">
+            AI-assisted osteoarthritis assessment
           </p>
         </div>
 
-        <nav aria-label="Footer navigation">
-          <h2 className="text-sm font-semibold text-ink-900">Explore</h2>
-          <ul className="mt-4 space-y-2 text-sm">
-            <li>
-              <Link className="text-ink-500 transition-colors hover:text-brand-700" to={ROUTES.home}>
-                Home
-              </Link>
-            </li>
-            <li>
-              <Link
-                className="text-ink-500 transition-colors hover:text-brand-700"
-                to={`${ROUTES.home}#${HOME_SECTIONS.howItWorks}`}
-              >
-                How It Works
-              </Link>
-            </li>
-            <li>
-              <Link
-                className="text-ink-500 transition-colors hover:text-brand-700"
-                to={`${ROUTES.home}#${HOME_SECTIONS.about}`}
-              >
-                About
-              </Link>
-            </li>
-          </ul>
-        </nav>
-
-        <div className="grid grid-cols-2 gap-8 sm:grid-cols-2 md:col-span-2 md:grid-cols-2">
-          <nav aria-label="Assessment modules">
-            <h2 className="text-sm font-semibold text-ink-900">Assessments</h2>
-            <ul className="mt-4 space-y-2 text-sm">
-              {productLinks.map((link) => (
-                <li key={link.label}>
-                  <Link
-                    className="text-ink-500 transition-colors hover:text-brand-700"
-                    to={link.to}
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-
-          <nav aria-label="Legal">
-            <h2 className="text-sm font-semibold text-ink-900">Legal</h2>
-            <ul className="mt-4 space-y-2 text-sm">
-              {legalLinks.map((link) => (
-                <li key={link.label}>
-                  <Link
-                    className="text-ink-500 transition-colors hover:text-brand-700"
-                    to={link.to}
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </div>
+        <FooterColumn title="Explore" links={exploreLinks} />
+        <FooterColumn title="Assessments" links={assessmentLinks} />
       </div>
 
-      <div className="border-t border-slate-200">
-        <div className="container-page flex flex-col gap-2 py-6 text-sm text-ink-500 sm:flex-row sm:items-center sm:justify-between">
+      <div className="border-t border-cream/10">
+        <div className="container-page flex flex-col gap-3 py-6 text-sm text-plum-100/60 sm:flex-row sm:items-center sm:justify-between">
           <p>&copy; 2026 OA Assist</p>
-          <p>Software prototype — AI-assisted preliminary assessment, not a medical diagnosis.</p>
+          <ul className="flex flex-wrap gap-5">
+            {legalLinks.map((link) => (
+              <li key={link.label}>
+                <Link className="transition-colors duration-200 hover:text-plum-200" to={link.to}>
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </footer>

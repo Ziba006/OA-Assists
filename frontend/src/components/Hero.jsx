@@ -6,19 +6,25 @@ import HeroVisual from './HeroVisual'
 
 export default function Hero() {
   return (
-    <section className="relative overflow-hidden border-b border-slate-200 bg-white">
+    <section className="relative overflow-hidden border-b border-line bg-surface-warm">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_60%_at_15%_0%,var(--color-brand-50),transparent_70%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(55%_60%_at_12%_0%,var(--color-sage-50),transparent_70%)]"
       />
-      <div className="container-page relative grid items-center gap-12 py-16 lg:grid-cols-2 lg:gap-16 lg:py-24">
-        <div className="max-w-xl">
-          <p className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-medium text-brand-800">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-40 [background-image:linear-gradient(to_right,var(--color-line)_1px,transparent_1px),linear-gradient(to_bottom,var(--color-line)_1px,transparent_1px)] [background-size:56px_56px] [mask-image:linear-gradient(to_bottom,black,transparent_75%)]"
+      />
+      <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sage-700 via-plum-400 to-plum-200" />
+
+      <div className="container-page relative grid items-center gap-14 py-16 lg:grid-cols-2 lg:gap-16 lg:py-24">
+        <div className="max-w-xl animate-fade-up">
+          <p className="inline-flex items-center gap-2 rounded-full border border-plum-200 bg-plum-50 px-3 py-1 text-xs font-medium text-plum-700">
             <ScanLine className="h-3.5 w-3.5" aria-hidden="true" />
             AI-assisted osteoarthritis assessment
           </p>
 
-          <h1 className="mt-6 text-4xl font-semibold tracking-tight text-balance text-ink-900 sm:text-5xl lg:text-[3.25rem] lg:leading-[1.08]">
+          <h1 className="mt-6 text-4xl font-semibold tracking-tight text-balance text-sage-900 sm:text-5xl lg:text-[3.25rem] lg:leading-[1.08]">
             Understand Your Joint Health, Earlier.
           </h1>
 
@@ -55,7 +61,7 @@ export default function Hero() {
           </div>
 
           <p className="mt-6 flex items-center gap-2 text-sm text-ink-500">
-            <ShieldCheck className="h-4 w-4 text-brand-600" aria-hidden="true" />
+            <ShieldCheck className="h-4 w-4 text-sage-600" aria-hidden="true" />
             AI-assisted preliminary assessment &bull; Not a medical diagnosis
           </p>
         </div>

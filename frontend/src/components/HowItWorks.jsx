@@ -34,7 +34,7 @@ export default function HowItWorks() {
   return (
     <section
       id={HOME_SECTIONS.howItWorks}
-      className="scroll-mt-20 border-y border-slate-200 bg-white py-16 sm:py-20"
+      className="scroll-mt-24 border-y border-line bg-surface-warm py-16 sm:py-20"
     >
       <Container>
         <SectionHeading
@@ -47,10 +47,10 @@ export default function HowItWorks() {
           {steps.map(({ number, icon: Icon, title, description }, index) => (
             <li key={number} className="relative flex flex-col">
               <div className="flex items-center gap-3">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-brand-200 bg-brand-50 text-brand-700">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-sage-900 text-plum-300">
                   <Icon className="h-5 w-5" aria-hidden="true" />
                 </span>
-                <span className="text-2xl font-semibold tracking-tight text-brand-300">
+                <span className="text-2xl font-semibold tracking-tight text-sage-300">
                   {number}
                 </span>
               </div>
@@ -58,11 +58,11 @@ export default function HowItWorks() {
               {index < steps.length - 1 ? (
                 <span
                   aria-hidden="true"
-                  className="absolute left-11 top-6 hidden h-px w-[calc(100%-2.75rem)] bg-gradient-to-r from-brand-200 to-transparent lg:block"
+                  className="absolute left-11 top-6 hidden h-px w-[calc(100%-2.75rem)] bg-gradient-to-r from-line-strong to-transparent lg:block"
                 />
               ) : null}
 
-              <h3 className="mt-5 text-base font-semibold text-ink-900">{title}</h3>
+              <h3 className="mt-5 text-base font-semibold text-sage-900">{title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-ink-500">{description}</p>
             </li>
           ))}

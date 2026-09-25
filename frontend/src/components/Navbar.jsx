@@ -14,7 +14,9 @@ const navLinks = [
 function linkClasses({ isActive }) {
   return [
     'rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200',
-    isActive ? 'bg-brand-50 text-brand-800' : 'text-ink-700 hover:bg-brand-50 hover:text-brand-800',
+    isActive
+      ? 'bg-plum-50 text-plum-700 ring-1 ring-plum-200'
+      : 'text-ink-700 hover:bg-sage-50 hover:text-sage-800',
   ].join(' ')
 }
 
@@ -42,8 +44,8 @@ export default function Navbar() {
   }, [isOpen])
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/85 backdrop-blur">
-      <nav aria-label="Main" className="container-page flex h-16 items-center justify-between gap-4">
+    <header className="sticky top-0 z-50 border-b border-line bg-cream/90 backdrop-blur-md">
+      <nav aria-label="Main" className="container-page flex h-18 items-center justify-between gap-4">
         <Logo />
 
         <div className="hidden items-center gap-1 md:flex">
@@ -71,7 +73,7 @@ export default function Navbar() {
 
         <button
           type="button"
-          className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 text-ink-700 transition-colors hover:bg-brand-50 md:hidden"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-line-strong text-ink-700 transition-colors hover:border-plum-300 hover:bg-plum-50 hover:text-sage-800 md:hidden"
           aria-expanded={isOpen}
           aria-controls="mobile-navigation"
           aria-label={isOpen ? 'Close main menu' : 'Open main menu'}
@@ -82,18 +84,13 @@ export default function Navbar() {
       </nav>
 
       {isOpen ? (
-        <div
-          id="mobile-navigation"
-          className="border-t border-slate-200 bg-white md:hidden"
-        >
+        <div id="mobile-navigation" className="border-t border-line bg-surface-warm md:hidden">
           <div className="container-page flex flex-col gap-1 py-4">
             {navLinks.map((link) => (
               <NavLink
                 key={link.label}
                 to={link.to}
-                className={({ isActive }) =>
-                  `${linkClasses({ isActive })} px-3 py-3 text-base`
-                }
+                className={({ isActive }) => `${linkClasses({ isActive })} px-3 py-3 text-base`}
               >
                 {link.label}
               </NavLink>

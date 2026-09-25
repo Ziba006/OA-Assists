@@ -1,15 +1,18 @@
 const baseClasses =
-  'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60'
+  'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-55'
 
 const variants = {
+  // Primary CTA — plum
   primary:
-    'bg-brand-700 text-white shadow-sm hover:bg-brand-800 active:bg-brand-900 focus-visible:outline-brand-800',
-  accent:
-    'bg-accent-600 text-white shadow-sm hover:bg-accent-700 active:bg-accent-800 focus-visible:outline-accent-800',
+    'bg-plum-500 text-cream shadow-sm hover:bg-plum-700 active:bg-plum-800 focus-visible:outline-plum-700',
+  // Dark sage CTA for calm, low-emphasis actions
+  sage: 'bg-sage-900 text-cream shadow-sm hover:bg-sage-800 focus-visible:outline-sage-800',
+  // Secondary — warm white with sage/plum border and dark text
   secondary:
-    'border border-slate-300 bg-white text-ink-900 hover:border-brand-400 hover:bg-brand-50 focus-visible:outline-brand-600',
-  ghost: 'text-ink-700 hover:bg-brand-50 hover:text-brand-800',
-  onDark: 'border border-white/30 bg-white/10 text-white hover:bg-white/20 focus-visible:outline-white',
+    'border border-line-strong bg-surface-warm text-sage-900 hover:border-sage-400 hover:bg-sage-50 focus-visible:outline-sage-600',
+  ghost: 'text-ink-700 hover:bg-sage-50 hover:text-sage-900',
+  onDark: 'border border-cream/25 bg-cream/5 text-cream hover:border-plum-300 hover:bg-cream/10',
+  danger: 'border border-error-100 bg-surface-warm text-error-700 hover:bg-error-100',
 }
 
 const sizes = {
