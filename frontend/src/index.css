@@ -1,0 +1,86 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans:
+    'Inter', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif;
+
+  /* Medical-tech primary: blue-teal */
+  --color-brand-50: #eff8fb;
+  --color-brand-100: #d7edf4;
+  --color-brand-200: #b0dce8;
+  --color-brand-300: #7bc3d8;
+  --color-brand-400: #44a3c0;
+  --color-brand-500: #2485a5;
+  --color-brand-600: #186a87;
+  --color-brand-700: #17566d;
+  --color-brand-800: #17475a;
+  --color-brand-900: #183c4b;
+  --color-brand-950: #0d2531;
+
+  /* Accent: clinical blue */
+  --color-accent-50: #eff6ff;
+  --color-accent-100: #dbeafe;
+  --color-accent-200: #bfdbfe;
+  --color-accent-300: #93c5fd;
+  --color-accent-400: #60a5fa;
+  --color-accent-500: #3b82f6;
+  --color-accent-600: #2563eb;
+  --color-accent-700: #1d4ed8;
+  --color-accent-800: #1e40af;
+  --color-accent-900: #1e3a8a;
+
+  /* Surface / text */
+  --color-surface: #f7fafc;
+  --color-surface-muted: #eef4f7;
+  --color-ink-900: #0f1c24;
+  --color-ink-700: #24404d;
+  --color-ink-500: #4a6472;
+
+  --shadow-card:
+    0 1px 2px rgb(15 28 36 / 0.04), 0 12px 24px -16px rgb(15 28 36 / 0.18);
+  --shadow-soft:
+    0 1px 2px rgb(15 28 36 / 0.05), 0 24px 48px -28px rgb(15 28 36 / 0.3);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-surface);
+    color: var(--color-ink-900);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent-600);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+
+  ::selection {
+    background-color: var(--color-brand-100);
+    color: var(--color-brand-900);
+  }
+}
+
+@layer components {
+  .container-page {
+    width: 100%;
+    max-width: 80rem; /* 1280px */
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+
+  @media (min-width: 768px) {
+    .container-page {
+      padding-inline: 2rem;
+    }
+  }
+}
