@@ -1,8 +1,9 @@
-# backend (FastAPI + MongoDB)
+# backend (FastAPI + MongoDB + JWT)
 
 The OA Assist backend lives here. It currently provides the FastAPI app, the
-MongoDB Atlas connection and the User document model. There is **no** signup
-route, login route, password hashing, JWT or authentication yet.
+MongoDB Atlas connection, the User document model, signup, login with JWT
+issuance and one protected route. Login, password resets, refresh tokens and
+logout are **not** implemented yet.
 
 ## Structure
 
@@ -12,15 +13,17 @@ backend/
 │   ├── __init__.py
 │   ├── main.py            # FastAPI app, CORS, router registration
 │   ├── database.py        # MongoDB client (PyMongo async) and ping helper
+│   ├── dependencies.py    # get_current_user: Bearer token -> MongoDB user
 │   ├── models/
 │   │   ├── __init__.py    # re-exports the models
 │   │   └── user.py        # User schema + users collection helpers
 │   ├── routes/
 │   │   ├── __init__.py
-│   │   └── auth.py        # POST /api/auth/signup
+│   │   └── auth.py        # POST /api/auth/signup, /login and GET /me
 │   └── utils/
 │       ├── __init__.py
-│       └── security.py    # bcrypt hashing and verification
+│       ├── security.py    # bcrypt hashing and verification
+│       └── jwt_utils.py   # JWT signing and verification
 ├── .env                   # your real credentials — never commit this
 ├── .env.example           # template without real values
 ├── .gitignore
@@ -39,9 +42,9 @@ venv\Scripts\activate          # Windows
 pip install -r requirements.txt
 ```
 
-`backend/.env` already exists. Put your own MongoDB Atlas connection string in
-it as `MONGO_URI=...` (see `.env.example` for the format). The file is listed in
-`.gitignore`, so it stays out of version control.
+`backend/.env` already exists. It holds your MongoDB Atlas connection string as
+`MONGO_URI=...` and the JWT settings (see `.env.example` for the format). The
+file is listed in `.gitignore`, so it stays out of version control.
 
 ## Run the server
 
@@ -61,7 +64,8 @@ uvicorn app.main:app --reload
 | GET    | `/`                   | Returns `{"message": "OA Assist backend is running"}`    |
 | GET    | `/health`             | Pings MongoDB. `200` when reachable, `503` when it is not. |
 | POST   | `/api/auth/signup`    | Creates an account. `201` on success, `409` if the email already exists, `422` for invalid input. |
-| POST   | `/api/auth/login`     | Verifies credentials. `200` on success, `401` for a wrong email or password, `422` for invalid input. |
+| POST   | `/api/auth/login`     | Verifies credentials and returns a JWT. `200` on success, `401` for a wrong email or password, `422` for invalid input. |
+| GET    | `/api/auth/me`        | Protected. Returns the authenticated user for a valid `Authorization: Bearer <token>`, `401` otherwise. |
 
 ## Database
 
@@ -87,8 +91,11 @@ collection of the `oa_assist` database.
 | `updatedAt` | datetime | UTC, set automatically on creation                |
 
 - `UserCreate` — the input shape accepted by the signup route.
+- `UserLogin` — the input shape accepted by the login route.
 - `UserInDB` — the stored document, with `id` mapped to MongoDB's `_id`.
 - `UserPublic` — safe response shape; never exposes the password.
+- `UserSession` — smaller safe shape (`id`, `fullName`, `email`) used by login
+  and by the protected `/api/auth/me` route.
 - `ensure_user_indexes()` — creates a unique index on the normalized `email`.
   It runs on startup from the FastAPI lifespan hook, so one account per email
   address is enforced at the database level.
@@ -142,7 +149,7 @@ Responses:
 
 | Status | When                                                                   |
 | ------ | ---------------------------------------------------------------------- |
-| `200`  | Credentials verified. Returns `{"message": "Login successful", "user": {id, fullName, email}}` |
+| `200`  | Credentials verified. Returns `{"message": "Login successful", "user": {id, fullName, email}, "access_token": "...", "token_type": "bearer"}` |
 | `401`  | Unknown email **or** wrong password. The message is identical in both cases: `{"detail": "Incorrect email or password."}` |
 | `422`  | Malformed body (missing field, invalid email format, empty password). |
 
@@ -159,8 +166,60 @@ How it works:
 - An unknown email still runs the bcrypt comparison against a fixed dummy hash
   (`DUMMY_PASSWORD_HASH`). Both failure paths therefore take the same time, and
   the endpoint does not reveal which addresses are registered.
-- No token is issued. JWT and session storage are added in a later step, and the
-  frontend Login page is not wired up to this endpoint yet.
+- On success a JWT is returned. Nothing is written to MongoDB, and the frontend
+  Login page is not wired up to this endpoint yet.
+
+## JWT tokens
+
+Defined in `app/utils/jwt_utils.py` and enforced by the `get_current_user`
+dependency in `app/dependencies.py`.
+
+How a token is generated after a successful login:
+
+1. The account id becomes the `sub` claim and the normalized email becomes the
+   `email` claim. Nothing else about the user is included.
+2. `iat` and `exp` are added, with the lifetime from `JWT_EXPIRE_MINUTES`
+   (default 60 minutes).
+3. The payload is signed with `JWT_SECRET` using `JWT_ALGORITHM` (default
+   `HS256`) and returned as `access_token` with `token_type: "bearer"`.
+
+Configuration comes from the environment only; the secret is never hardcoded
+and never returned by the API:
+
+| Variable            | Required | Default | Purpose                                    |
+| ------------------- | -------- | ------- | ------------------------------------------ |
+| `JWT_SECRET`        | yes      | —       | Signing key. The app refuses to sign without it. |
+| `JWT_ALGORITHM`     | no       | `HS256` | Signing algorithm.                         |
+| `JWT_EXPIRE_MINUTES`| no       | `60`    | Token lifetime in minutes.                 |
+
+Using a token on a protected route:
+
+```
+Authorization: Bearer <access_token>
+```
+
+`GET /api/auth/me` is the protected example. It returns only the identity:
+
+```json
+{ "id": "...", "fullName": "...", "email": "..." }
+```
+
+`get_current_user` reads the Bearer header, verifies the signature, algorithm
+and expiry, then loads the user from MongoDB using the `sub` claim. Details sent
+by the client are never trusted. It answers `401` with
+`{"detail": "Could not validate credentials."}` for a missing, malformed,
+tampered, expired or unknown-account token, and `503` if the database is
+unreachable. Swagger sends the header automatically because the route declares
+the HTTPBearer security scheme, so the **Authorize** button appears at the top
+of the docs page.
+
+Notes:
+
+- Tokens are stateless. Nothing is stored in MongoDB, so there is no revocation
+  list and **no logout endpoint yet**; a token stays valid until it expires.
+- Rotating `JWT_SECRET` invalidates every issued token immediately.
+- On Vercel, set `JWT_SECRET` in the project environment variables alongside
+  `MONGO_URI` and `CLIENT_URL`.
 
 ## CORS
 

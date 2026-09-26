@@ -69,17 +69,51 @@ hardcoded in the source:
 VITE_API_URL=http://127.0.0.1:8000
 ```
 
-The signup page (`/signup`) posts to `${VITE_API_URL}/api/auth/signup` through
+The signup page (`/signup`) posts to `${VITE_API_URL}/api/auth/signup` and the
+login page (`/login`) posts to `${VITE_API_URL}/api/auth/login`, both through
 `src/services/authService.js`, which uses the shared helper in
-`src/services/api.js`. Nothing is stored in localStorage and the password is
-never logged or displayed.
+`src/services/api.js`. The password is never logged or displayed.
+
+## Authentication
+
+Login stores the session so a page refresh keeps the user signed in:
+
+| Key                     | Content                                        |
+| ----------------------- | ---------------------------------------------- |
+| `oa-assist.accessToken` | The JWT from `POST /api/auth/login`            |
+| `oa-assist.user`        | Only `{id, fullName, email}`                   |
+
+`src/services/tokenStorage.js` owns both keys. The password, the password hash,
+`MONGO_URI` and `JWT_SECRET` are never sent to the browser and are never stored.
+
+- `authRequest(path)` in `src/services/api.js` is the authenticated counterpart
+  of `request`. It adds `Authorization: Bearer <access_token>` automatically, so
+  a protected call never handles the header itself:
+
+  ```js
+  import { getCurrentUser } from '../services/authService'
+
+  const user = await getCurrentUser() // -> GET /api/auth/me with the header
+  ```
+
+  There is no Axios in this project, so the equivalent of an Axios request
+  interceptor is this wrapper. Switching to Axios later means moving the same
+  header logic into an interceptor.
+- A `401` clears the stored session and notifies `AuthContext`, which sets the
+  user back to `null` so `isAuthenticated` becomes `false`. Redirecting to
+  `/login` from there is the next step.
+- `AuthContext` hydrates the user from storage on load and exposes `isAuthenticated`,
+  `user` and `signIn` through the `useAuth` hook.
+- Guest mode is untouched: it never writes to storage, and "Continue as Guest"
+  still works from the login page.
+- Logout is not implemented yet.
 
 ## Routes
 
 | Route        | Page                                                |
 | ------------ | --------------------------------------------------- |
 | `/`          | Landing page                                        |
-| `/login`     | Login placeholder                                   |
+| `/login`     | Sign in form, connected to the FastAPI JWT login API     |
 | `/signup`    | Sign up form, connected to the FastAPI signup API     |
 | `/guest`     | Guest session entry (temporary, in-memory)          |
 | `/dashboard` | Dashboard placeholder                               |
@@ -98,16 +132,17 @@ src/
   components/        reusable UI (Navbar, Footer, Hero, sections, ui/*)
   layouts/           PublicLayout (marketing) and AppLayout (application)
   pages/             one file per route
-  context/           AuthContext, AssessmentContext (in-memory only)
+  context/           AuthContext, AssessmentContext
   hooks/             useAuth, useAssessment
-  services/          api, xrayService, gaitService (placeholders)
+  services/          api, authService, tokenStorage, xrayService, gaitService
   routes.js          route constants and section anchors
 ```
 
 ## Future integration notes
 
-- Authentication, the database and the AI services are not implemented. Session
-  state lives in React memory only, so guest data is never persisted.
+- Signup, login and JWT storage are connected. Logout, protected routes and the
+  assessment endpoints are not. Guest assessment data still lives in React memory
+  only, so it is never persisted.
 - The backend base URL is `VITE_API_URL`; `src/services/api.js` reads it via
   `import.meta.env` and falls back to `http://127.0.0.1:8000` when it is unset,
   so local development works without extra configuration.

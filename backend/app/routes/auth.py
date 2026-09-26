@@ -6,10 +6,11 @@ implemented yet.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pymongo.errors import DuplicateKeyError
 from pydantic import BaseModel, Field
 
+from ..dependencies import get_current_user
 from ..models.user import (
     UserCreate,
     UserLogin,
@@ -18,6 +19,7 @@ from ..models.user import (
     get_users_collection,
     utc_now,
 )
+from ..utils.jwt_utils import create_access_token
 from ..utils.security import hash_password, verify_password
 
 router = APIRouter()
@@ -41,10 +43,20 @@ class SignupResponse(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    """Shape returned after a successful login. The password is never included."""
+    """Shape returned after a successful login.
+
+    Carries a signed JWT access token. The password, its hash and the signing
+    secret are never part of the response.
+    """
 
     message: str = Field(..., examples=["Login successful"])
     user: UserSession
+    access_token: str = Field(
+        ...,
+        description="Signed JWT. Send it as: Authorization: Bearer <access_token>",
+        examples=["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."],
+    )
+    token_type: str = Field(default="bearer", examples=["bearer"])
 
 
 @router.post(
@@ -110,13 +122,15 @@ async def signup(payload: UserCreate) -> SignupResponse:
     summary="Log in with an email and password",
 )
 async def login(payload: UserLogin) -> LoginResponse:
-    """Verify credentials and return the signed-in user.
+    """Verify credentials and return the signed-in user with a JWT.
 
     - The email is matched lowercase and trimmed, exactly as it is stored.
     - The password is only ever compared against the stored bcrypt hash.
     - An unknown email and a wrong password both return the same `401` response,
       so the endpoint does not reveal which accounts exist.
-    - No token is issued yet: JWT support is added in a later step.
+    - On success a stateless JWT is returned. Send it back as
+      `Authorization: Bearer <access_token>` to call protected routes such as
+      `GET /api/auth/me`. The token is not stored in MongoDB.
     """
     users = get_users_collection()
 
@@ -134,12 +148,35 @@ async def login(payload: UserLogin) -> LoginResponse:
             detail=INVALID_CREDENTIALS,
         )
 
-    # 3. Return only the identity. The password and its hash stay in MongoDB.
+    # 3. Sign a token that carries only the id and the email of the user.
+    user_id = str(user["_id"])
+    access_token = create_access_token(user_id=user_id, email=user["email"])
+
+    # 4. Return the identity and the token. The password and its hash stay in
+    #    MongoDB.
     return LoginResponse(
         message="Login successful",
         user=UserSession(
-            id=str(user["_id"]),
+            id=user_id,
             fullName=user["fullName"],
             email=user["email"],
         ),
+        access_token=access_token,
+        token_type="bearer",
     )
+
+
+@router.get(
+    "/me",
+    response_model=UserSession,
+    status_code=status.HTTP_200_OK,
+    summary="Return the currently authenticated user",
+)
+async def read_current_user(current_user: UserSession = Depends(get_current_user)) -> UserSession:
+    """Protected route: requires `Authorization: Bearer <access_token>`.
+
+    The response is built from the MongoDB document found with the id inside the
+    verified token, so nothing the client sends is trusted. The password and its
+    hash are never returned.
+    """
+    return current_user
