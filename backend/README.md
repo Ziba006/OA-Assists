@@ -24,6 +24,8 @@ backend/
 ├── .env                   # your real credentials — never commit this
 ├── .env.example           # template without real values
 ├── .gitignore
+├── .python-version        # pins Python 3.12 for Vercel builds
+├── vercel.json            # Vercel function settings for app/main.py
 └── requirements.txt
 ```
 
@@ -123,9 +125,52 @@ Responses:
 
 ## CORS
 
-`FRONTEND_ORIGINS` in `.env` holds a comma-separated allow-list. It defaults to
-`http://localhost:5173`, the Vite dev server. When the frontend is deployed,
-add that URL to the same variable — no code change is needed.
+`CLIENT_URL` in `.env` (or as an environment variable on the host) holds a
+comma-separated allow-list. It defaults to `http://localhost:5173`, the Vite dev
+server. When the frontend is deployed, add that URL to the same variable — no
+code change is needed.
+
+`FRONTEND_ORIGINS` is still read as a fallback so older local setups keep
+working, but `CLIENT_URL` is the documented name.
+
+## Deploy to Vercel
+
+Vercel supports FastAPI with zero configuration: it looks for an instance named
+`app` in a supported entrypoint file, and `app/main.py` is one of them. Nothing
+in the app had to change for this.
+
+Set up a **separate Vercel project for the backend**, with **Root Directory =
+`backend`**. Keep the frontend as its own project (its own Vite build); mixing a
+static build and a Python function in one project forces conflicting framework
+presets and routing rules.
+
+Project settings:
+
+- Framework Preset: `FastAPI`
+- Root Directory: `backend`
+- Build Command: leave empty (Vercel installs `requirements.txt` and skips the build)
+
+Environment variables (Project → Settings → Environment Variables):
+
+- `MONGO_URI` — the MongoDB Atlas connection string, same value as in
+  `backend/.env`. Set it for Production, Preview and Development.
+- `CLIENT_URL` — the deployed frontend origin, for example
+  `https://your-app.vercel.app` (comma-separated for several).
+
+`backend/.env` is never deployed: it stays git-ignored, and `vercel.json` also
+excludes it from the function bundle. `load_dotenv` in `app/main.py` is a no-op
+on Vercel, where values come from the dashboard.
+
+`vercel.json` sets `maxDuration` and the bundle `excludeFiles` for the
+`app/main.py` function. `.python-version` pins Python 3.12 for the build.
+
+`app/main.py:46` keeps the lifespan hook, so the unique email index is created on
+startup. Vercel limits lifespan shutdown work to 500ms, which is enough to close
+the Mongo client.
+
+One manual step in Atlas: allow Vercel's outbound addresses. The simplest option
+is to allow access from `0.0.0.0/0` in **Network Access**, or add Vercel's
+published egress ranges for that cluster.
 
 ## Planned scope (future work)
 

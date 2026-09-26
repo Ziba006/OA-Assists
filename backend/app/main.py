@@ -26,15 +26,18 @@ from .routes import auth
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 # Origins allowed to call this API from a browser.
-# Default matches the Vite dev server. To change it, set FRONTEND_ORIGINS in
-# backend/.env as a comma-separated list, for example:
-#   FRONTEND_ORIGINS=http://localhost:5173,https://your-app.vercel.app
+# Default matches the Vite dev server. To change it, set CLIENT_URL in
+# backend/.env (locally) or as an environment variable on the hosting
+# platform (Vercel) as a comma-separated list, for example:
+#   CLIENT_URL=http://localhost:5173,https://your-app.vercel.app
 DEFAULT_CORS_ORIGINS = ["http://localhost:5173"]
 
 
 def get_cors_origins() -> list[str]:
     """Build the CORS allow-list from the environment."""
-    raw_value = os.getenv("FRONTEND_ORIGINS", "")
+    # CLIENT_URL is the documented variable. FRONTEND_ORIGINS is still read as a
+    # fallback so existing local setups keep working.
+    raw_value = os.getenv("CLIENT_URL", "") or os.getenv("FRONTEND_ORIGINS", "")
 
     if not raw_value.strip():
         return DEFAULT_CORS_ORIGINS
