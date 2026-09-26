@@ -1,14 +1,18 @@
 /**
  * Shared API layer for OA Assist.
  *
- * The base URL is never hardcoded. It comes from the VITE_API_BASE_URL
- * environment variable, which Vite loads from an env file in the frontend root:
+ * The base URL is never hardcoded. It comes from the VITE_API_URL environment
+ * variable, which Vite loads from an env file in the frontend root:
  *
- *   VITE_API_BASE_URL=http://127.0.0.1:8000
+ *   VITE_API_URL=https://oa-assists-9mta.vercel.app
  *
  * Copy .env.example to .env.local for local development (see frontend/README.md).
+ * Every service (signup, gait, x-ray) builds its URLs here, so no endpoint is
+ * hardcoded outside this file.
  */
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+const DEFAULT_API_URL = 'http://127.0.0.1:8000'
+
+const API_BASE_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).trim()
 
 export class ApiError extends Error {
   constructor(message, { status = 0, code = null, fieldErrors = null } = {}) {
@@ -20,7 +24,7 @@ export class ApiError extends Error {
   }
 }
 
-/** True when VITE_API_BASE_URL is set, so the app knows the API is reachable. */
+/** True when an API address is available, so the app knows the API is reachable. */
 export function isApiConfigured() {
   return Boolean(API_BASE_URL)
 }
@@ -28,7 +32,7 @@ export function isApiConfigured() {
 function getBaseUrl() {
   if (!API_BASE_URL) {
     throw new ApiError(
-      'The API address is not configured. Add VITE_API_BASE_URL to frontend/.env.local and restart the dev server.',
+      'The API address is not configured. Add VITE_API_URL to frontend/.env.local and restart the dev server.',
     )
   }
 

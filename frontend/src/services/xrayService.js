@@ -3,7 +3,7 @@ import { request } from './api'
 /**
  * X-ray assessment service. The AI imaging model is not integrated yet, so these
  * entry points only describe the intended contract and will fail until the
- * backend and VITE_API_BASE_URL are provided.
+ * backend and VITE_API_URL are provided.
  */
 export function analyzeXray(file, { signal } = {}) {
   const formData = new FormData()

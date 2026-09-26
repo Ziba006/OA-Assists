@@ -3,5 +3,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "env": { "VITE_API_URL": "https://oa-assists-9mta.vercel.app" },
   "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }]
 }

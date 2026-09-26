@@ -66,10 +66,10 @@ hardcoded in the source:
 `.env.local` contains:
 
 ```
-VITE_API_BASE_URL=http://127.0.0.1:8000
+VITE_API_URL=http://127.0.0.1:8000
 ```
 
-The signup page (`/signup`) posts to `/api/auth/signup` on that base URL through
+The signup page (`/signup`) posts to `${VITE_API_URL}/api/auth/signup` through
 `src/services/authService.js`, which uses the shared helper in
 `src/services/api.js`. Nothing is stored in localStorage and the password is
 never logged or displayed.
@@ -108,9 +108,11 @@ src/
 
 - Authentication, the database and the AI services are not implemented. Session
   state lives in React memory only, so guest data is never persisted.
-- When the backend exists, set `VITE_API_BASE_URL`; `src/services/api.js` reads
-  it via `import.meta.env` and throws a clear error until it is configured.
-- No API URLs (including localhost) are hardcoded anywhere.
+- The backend base URL is `VITE_API_URL`; `src/services/api.js` reads it via
+  `import.meta.env` and falls back to `http://127.0.0.1:8000` when it is unset,
+  so local development works without extra configuration.
+- No API URLs are hardcoded anywhere else; every request goes through
+  `src/services/api.js`.
 
 ## Deployment
 
