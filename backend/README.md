@@ -61,6 +61,7 @@ uvicorn app.main:app --reload
 | GET    | `/`                   | Returns `{"message": "OA Assist backend is running"}`    |
 | GET    | `/health`             | Pings MongoDB. `200` when reachable, `503` when it is not. |
 | POST   | `/api/auth/signup`    | Creates an account. `201` on success, `409` if the email already exists, `422` for invalid input. |
+| POST   | `/api/auth/login`     | Verifies credentials. `200` on success, `401` for a wrong email or password, `422` for invalid input. |
 
 ## Database
 
@@ -103,7 +104,8 @@ Passwords are hashed with `bcrypt` (cost 12) by the helpers in
 - The hash is never returned by the API.
 - Passwords longer than bcrypt's 72-byte limit are condensed with SHA-256
   first, so long passwords are never silently truncated.
-- Login, tokens and sessions are **not** implemented yet.
+- Login is implemented separately (see below); tokens and sessions are **not**
+  implemented yet.
 
 Request body:
 
@@ -122,6 +124,43 @@ Responses:
 | `201`  | Account created. Returns `{"message": "...", "user": {id, fullName, email, createdAt, updatedAt}}` |
 | `409`  | The email is already registered.                                        |
 | `422`  | Missing or invalid field (blank name, bad email, password under 8 chars). |
+
+## Login
+
+`POST /api/auth/login` (defined in `app/routes/auth.py`).
+
+Request body:
+
+```json
+{
+  "email": "zibatest@example.com",
+  "password": "TestPassword123"
+}
+```
+
+Responses:
+
+| Status | When                                                                   |
+| ------ | ---------------------------------------------------------------------- |
+| `200`  | Credentials verified. Returns `{"message": "Login successful", "user": {id, fullName, email}}` |
+| `401`  | Unknown email **or** wrong password. The message is identical in both cases: `{"detail": "Incorrect email or password."}` |
+| `422`  | Malformed body (missing field, invalid email format, empty password). |
+
+How it works:
+
+- The email is normalized with the same `normalize_email` helper used by signup,
+  so any casing or surrounding whitespace still matches the stored document.
+- The user is looked up in the existing `users` collection and the submitted
+  password is checked with `verify_password` from `app/utils/security.py`, which
+  compares against the stored bcrypt hash. The plain password is never stored or
+  logged, and the hash is never returned.
+- The response uses a dedicated `UserSession` model that contains only `id`,
+  `fullName` and `email`, so the password and hash cannot leak through it.
+- An unknown email still runs the bcrypt comparison against a fixed dummy hash
+  (`DUMMY_PASSWORD_HASH`). Both failure paths therefore take the same time, and
+  the endpoint does not reveal which addresses are registered.
+- No token is issued. JWT and session storage are added in a later step, and the
+  frontend Login page is not wired up to this endpoint yet.
 
 ## CORS
 

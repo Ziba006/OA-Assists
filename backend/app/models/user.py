@@ -93,6 +93,45 @@ class UserInDB(BaseModel):
     updatedAt: datetime = Field(default_factory=utc_now)
 
 
+class UserLogin(BaseModel):
+    """Credentials accepted by the login route.
+
+    The email is normalized the same way as on signup, so a user can log in with
+    any casing or surrounding spaces. The password is only checked against the
+    stored hash and is never stored here.
+    """
+
+    email: EmailStr = Field(
+        ...,
+        description="Email of the account, matched lowercase and trimmed.",
+        examples=["zibatest@example.com"],
+    )
+    password: str = Field(
+        ...,
+        min_length=1,
+        max_length=128,
+        description="Plain password, verified against the stored bcrypt hash.",
+        examples=["TestPassword123"],
+    )
+
+    @field_validator("email")
+    @classmethod
+    def clean_email(cls, value: EmailStr) -> str:
+        return normalize_email(str(value))
+
+
+class UserSession(BaseModel):
+    """Safe shape of the signed-in user.
+
+    Deliberately smaller than `UserPublic`: a login response only needs the
+    identity, and the password is never part of any response model.
+    """
+
+    id: str
+    fullName: str
+    email: str
+
+
 class UserPublic(BaseModel):
     """Safe shape of a user for API responses (never includes the password)."""
 

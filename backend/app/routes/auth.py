@@ -1,6 +1,6 @@
 """Authentication routes for OA Assist.
 
-Only signup exists right now. Login, tokens and session handling are not
+Signup and login exist right now. Tokens, sessions and password resets are not
 implemented yet.
 """
 
@@ -10,10 +10,27 @@ from fastapi import APIRouter, HTTPException, status
 from pymongo.errors import DuplicateKeyError
 from pydantic import BaseModel, Field
 
-from ..models.user import UserCreate, UserPublic, get_users_collection, utc_now
-from ..utils.security import hash_password
+from ..models.user import (
+    UserCreate,
+    UserLogin,
+    UserPublic,
+    UserSession,
+    get_users_collection,
+    utc_now,
+)
+from ..utils.security import hash_password, verify_password
 
 router = APIRouter()
+
+# One message for every failed login, so the response never reveals whether an
+# account exists. Returned with HTTP 401 for an unknown email and for a wrong
+# password alike.
+INVALID_CREDENTIALS = "Incorrect email or password."
+
+# A valid bcrypt hash of a value nobody knows. When no account matches the
+# email, the password is still verified against this hash so the two failure
+# paths take the same amount of time and cannot be told apart by timing.
+DUMMY_PASSWORD_HASH = "$2b$12$Nctc1TjFJUVHRFKAXOuPCuTt/l0IhjSvfD8qISfM29TokUnrC1dXa"
 
 
 class SignupResponse(BaseModel):
@@ -21,6 +38,13 @@ class SignupResponse(BaseModel):
 
     message: str = Field(..., examples=["Account created successfully"])
     user: UserPublic
+
+
+class LoginResponse(BaseModel):
+    """Shape returned after a successful login. The password is never included."""
+
+    message: str = Field(..., examples=["Login successful"])
+    user: UserSession
 
 
 @router.post(
@@ -75,5 +99,47 @@ async def signup(payload: UserCreate) -> SignupResponse:
             email=document["email"],
             createdAt=document["createdAt"],
             updatedAt=document["updatedAt"],
+        ),
+    )
+
+
+@router.post(
+    "/login",
+    response_model=LoginResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Log in with an email and password",
+)
+async def login(payload: UserLogin) -> LoginResponse:
+    """Verify credentials and return the signed-in user.
+
+    - The email is matched lowercase and trimmed, exactly as it is stored.
+    - The password is only ever compared against the stored bcrypt hash.
+    - An unknown email and a wrong password both return the same `401` response,
+      so the endpoint does not reveal which accounts exist.
+    - No token is issued yet: JWT support is added in a later step.
+    """
+    users = get_users_collection()
+
+    # 1. Look the account up by the normalized email.
+    user = await users.find_one({"email": payload.email})
+
+    # 2. Verify the password, even when there is no account, so both failure
+    #    paths cost the same and the timing does not leak account existence.
+    password_hash = user["password"] if user else DUMMY_PASSWORD_HASH
+    password_matches = verify_password(payload.password, password_hash)
+
+    if user is None or not password_matches:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=INVALID_CREDENTIALS,
+        )
+
+    # 3. Return only the identity. The password and its hash stay in MongoDB.
+    return LoginResponse(
+        message="Login successful",
+        user=UserSession(
+            id=str(user["_id"]),
+            fullName=user["fullName"],
+            email=user["email"],
         ),
     )
