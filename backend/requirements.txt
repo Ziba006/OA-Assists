@@ -1,0 +1,15 @@
+# Web framework and ASGI server
+fastapi>=0.115.0,<1.0.0
+uvicorn[standard]>=0.30.0,<1.0.0
+
+# MongoDB (PyMongo's built-in async client; Motor is deprecated)
+pymongo>=4.13.0,<5.0.0
+
+# Environment variables from backend/.env
+python-dotenv>=1.0.1,<2.0.0
+
+# Email validation for Pydantic's EmailStr type
+email-validator>=2.2.0,<3.0.0
+
+# Password hashing
+bcrypt>=4.1.0,<6.0.0

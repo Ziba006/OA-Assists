@@ -53,13 +53,34 @@ npm run preview  # serve the production build locally
 npm run lint     # oxlint
 ```
 
+## Backend connection
+
+The frontend reads the API base URL from an environment variable, so no URL is
+hardcoded in the source:
+
+1. Copy `.env.example` to `.env.local` (already created for local development,
+   and git-ignored).
+2. Start the backend: `cd ../backend && uvicorn app.main:app --reload`
+3. Start the frontend: `npm run dev`
+
+`.env.local` contains:
+
+```
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
+
+The signup page (`/signup`) posts to `/api/auth/signup` on that base URL through
+`src/services/authService.js`, which uses the shared helper in
+`src/services/api.js`. Nothing is stored in localStorage and the password is
+never logged or displayed.
+
 ## Routes
 
 | Route        | Page                                                |
 | ------------ | --------------------------------------------------- |
 | `/`          | Landing page                                        |
 | `/login`     | Login placeholder                                   |
-| `/signup`    | Sign up placeholder                                 |
+| `/signup`    | Sign up form, connected to the FastAPI signup API     |
 | `/guest`     | Guest session entry (temporary, in-memory)          |
 | `/dashboard` | Dashboard placeholder                               |
 | `/xray`      | X-ray assessment placeholder                        |
