@@ -102,11 +102,29 @@ Login stores the session so a page refresh keeps the user signed in:
 - A `401` clears the stored session and notifies `AuthContext`, which sets the
   user back to `null` so `isAuthenticated` becomes `false`. Redirecting to
   `/login` from there is the next step.
-- `AuthContext` hydrates the user from storage on load and exposes `isAuthenticated`,
-  `user` and `signIn` through the `useAuth` hook.
+- `AuthContext` is the only source of truth for the session. It exposes
+  `status` (`restoring` / `authenticated` / `guest`), `user`, `isAuthenticated`,
+  `isAuthenticating`, `signIn`, `signOut` and the guest helpers through the
+  `useAuth` hook.
+- **Page refresh:** the stored token is never trusted on its own. On load the
+  provider calls `GET /api/auth/me` with `Authorization: Bearer <access_token>`.
+  A `200` makes the user authenticated and refreshes the stored copy; a `401`
+  clears the token and falls back to guest.
+- The application sidebar (`src/components/AppSidebar.jsx`) renders the account
+  card from that state: the signed-in user's name and email with a **Logout**
+  button, or the original "No account connected" card with **Create Account**
+  when nobody is signed in. A short "Checking session" state avoids a flash while
+  `/api/auth/me` is in flight.
+- **Logout** removes the token from localStorage, resets the context to guest and
+  navigates to `/login`. There is no server call, because the backend issues
+  stateless JWTs and has no logout endpoint. Guest assessment data is left alone.
+- **Route guard:** `src/components/RequireAuth.jsx` wraps the application routes
+  in `src/App.jsx`. It renders nothing while the session is being restored, lets
+  authenticated users and guest sessions through, and redirects anyone else to
+  `/login`. So a refresh or a back button after logout cannot land on an app page
+  as a signed-out visitor.
 - Guest mode is untouched: it never writes to storage, and "Continue as Guest"
   still works from the login page.
-- Logout is not implemented yet.
 
 ## Routes
 

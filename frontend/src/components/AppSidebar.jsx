@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import {
   ClipboardList,
   FileText,
@@ -88,7 +88,15 @@ function NavGroup({ label, items, onNavigate, separated }) {
 }
 
 export default function AppSidebar({ onNavigate }) {
-  const { isGuest } = useAuth()
+  const navigate = useNavigate()
+  const { user, isAuthenticated, isAuthenticating, signOut } = useAuth()
+
+  const handleSignOut = () => {
+    // Removes the stored JWT and returns the app to the guest state.
+    signOut()
+    onNavigate?.()
+    navigate(ROUTES.login)
+  }
 
   return (
     <div className="flex h-full flex-col bg-sage-900">
@@ -104,33 +112,68 @@ export default function AppSidebar({ onNavigate }) {
 
       <div className="border-t border-cream/10 px-4 py-4">
         <div className="rounded-xl border border-cream/10 bg-cream/5 p-4">
-          <div className="flex items-center gap-2">
-            <span
-              className={`h-2 w-2 rounded-full ${isGuest ? 'bg-plum-300' : 'bg-sage-400'}`}
-              aria-hidden="true"
-            />
-            <p className="text-sm font-semibold text-cream">
-              {isGuest ? 'Guest Session' : 'No account connected'}
-            </p>
-          </div>
+          {isAuthenticated ? (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-sage-400" aria-hidden="true" />
+                <p className="truncate text-sm font-semibold text-cream">
+                  {user.fullName || user.email}
+                </p>
+              </div>
 
-          <p className="mt-1 text-xs leading-relaxed text-sage-300/80">
-            {isGuest
-              ? 'Temporary session. Nothing is saved to a permanent profile.'
-              : 'Account features are not connected in this prototype.'}
-          </p>
+              <p className="mt-1 truncate text-xs text-sage-300/80">{user.email}</p>
 
-          <NavLink
-            to={ROUTES.signup}
-            onClick={onNavigate}
-            className={buttonClasses({
-              variant: 'primary',
-              size: 'sm',
-              className: 'mt-3 w-full',
-            })}
-          >
-            Create Account
-          </NavLink>
+              <p className="mt-1 text-xs leading-relaxed text-sage-300/80">
+                Signed in. Assessments are linked to this account.
+              </p>
+
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className={buttonClasses({
+                  variant: 'primary',
+                  size: 'sm',
+                  className: 'mt-3 w-full',
+                })}
+              >
+                Logout
+              </button>
+            </>
+          ) : isAuthenticating ? (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-plum-300" aria-hidden="true" />
+                <p className="text-sm font-semibold text-cream">Checking session</p>
+              </div>
+
+              <p className="mt-1 text-xs leading-relaxed text-sage-300/80">
+                Confirming your saved sign-in.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-plum-300" aria-hidden="true" />
+                <p className="text-sm font-semibold text-cream">No account connected</p>
+              </div>
+
+              <p className="mt-1 text-xs leading-relaxed text-sage-300/80">
+                Account features are not connected in this prototype.
+              </p>
+
+              <NavLink
+                to={ROUTES.signup}
+                onClick={onNavigate}
+                className={buttonClasses({
+                  variant: 'primary',
+                  size: 'sm',
+                  className: 'mt-3 w-full',
+                })}
+              >
+                Create Account
+              </NavLink>
+            </>
+          )}
         </div>
 
         <div className="mt-4 flex items-center justify-between gap-2">

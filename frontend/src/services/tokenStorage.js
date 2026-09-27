@@ -74,10 +74,8 @@ export function hasSession() {
   return Boolean(getAccessToken())
 }
 
-/**
- * Remember a successful login. The password is not part of the payload, and any
- * field other than id, fullName and email is dropped.
- */
+/** Remember a successful login. The password is not part of the payload, and any
+ * field other than id, fullName and email is dropped. */
 export function saveSession({ accessToken, user }) {
   if (!accessToken) return
 
@@ -89,6 +87,14 @@ export function saveSession({ accessToken, user }) {
       JSON.stringify({ id: user.id, fullName: user.fullName ?? '', email: user.email }),
     )
   }
+}
+
+/** Refresh the stored user after the backend confirmed the token. Same
+ * three-field whitelist as `saveSession`. */
+export function updateStoredUser(user) {
+  if (!user?.id || !user?.email) return
+
+  writeItem(USER_KEY, JSON.stringify({ id: user.id, fullName: user.fullName ?? '', email: user.email }))
 }
 
 /** Forget the session. Used when a token is rejected; logout is a later step. */

@@ -1,42 +1,117 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from 'react'
-import { clearSession, getStoredUser, onUnauthorized } from '../services/tokenStorage'
+import { getCurrentUser } from '../services/authService'
+import {
+  clearSession,
+  getAccessToken,
+  onUnauthorized,
+  updateStoredUser,
+} from '../services/tokenStorage'
 
 /**
- * Session state for OA Assist.
+ * The single source of truth for authentication in the app.
  *
- * A signed-in user is hydrated from localStorage on load, so a page refresh
- * keeps the session. The JWT itself lives in `services/tokenStorage.js`; this
- * provider only mirrors the public user fields into React state.
+ * `status` is one of:
+ * - restoring: a token is in storage and GET /api/auth/me is in flight
+ * - authenticated: the backend confirmed the token and returned the user
+ * - guest: nobody is signed in
  *
- * Guest mode is unchanged and independent: it never writes anything to storage.
+ * The stored JWT is never trusted on its own. After a page refresh the token is
+ * sent to the backend and the user shown in the UI is the one the backend
+ * returns. A `401` clears the token and drops back to guest, which is what
+ * `authRequest` does in `services/api.js`.
  */
 export const AuthContext = createContext(null)
 
+const AUTH_STATUS = {
+  restoring: 'restoring',
+  authenticated: 'authenticated',
+  guest: 'guest',
+}
+
+/** Keep only the three public fields the sidebar and header need. */
+function toSessionUser(user) {
+  if (!user?.id || !user?.email) return null
+
+  return { id: user.id, fullName: user.fullName ?? '', email: user.email }
+}
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => getStoredUser())
+  // No token means guest straight away, so a guest never sees a loading state.
+  const [user, setUser] = useState(null)
+  const [status, setStatus] = useState(() =>
+    getAccessToken() ? AUTH_STATUS.restoring : AUTH_STATUS.guest,
+  )
   const [isGuest, setIsGuest] = useState(false)
 
-  // The backend rejected the stored token (expired or revoked), so drop the
-  // session. Routing to the login page on top of this is a later step.
+  // Ask the backend who the stored token belongs to. This runs once per page
+  // load, so a refresh keeps the session only while the JWT is still valid.
+  useEffect(() => {
+    if (status !== AUTH_STATUS.restoring) return undefined
+
+    let cancelled = false
+
+    getCurrentUser()
+      .then((data) => {
+        if (cancelled) return
+
+        const sessionUser = toSessionUser(data)
+
+        if (sessionUser) {
+          updateStoredUser(sessionUser)
+          setUser(sessionUser)
+          setStatus(AUTH_STATUS.authenticated)
+        } else {
+          setStatus(AUTH_STATUS.guest)
+        }
+      })
+      .catch(() => {
+        if (cancelled) return
+
+        // `authRequest` already cleared the session on a 401. Any other failure
+        // (backend down) leaves the token in place but shows the guest state
+        // rather than claiming to be signed in.
+        setStatus(AUTH_STATUS.guest)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [status])
+
+  // The backend rejected the token while a request was in flight, so the
+  // session is already cleared and React state follows.
   useEffect(
     () =>
       onUnauthorized(() => {
-        clearSession()
         setUser(null)
+        setStatus(AUTH_STATUS.guest)
       }),
     [],
   )
 
   /** Record a completed login. Called by the Login page. */
   const signIn = useCallback((nextUser) => {
-    if (!nextUser?.id) return
+    const sessionUser = toSessionUser(nextUser)
 
-    setUser({ id: nextUser.id, fullName: nextUser.fullName ?? '', email: nextUser.email })
+    if (!sessionUser) return
+
+    setUser(sessionUser)
     setIsGuest(false)
+    setStatus(AUTH_STATUS.authenticated)
+  }, [])
+
+  /**
+   * Log out. The token is removed from this browser only; there is no server
+   * side session to end, because the backend issues stateless JWTs.
+   */
+  const signOut = useCallback(() => {
+    clearSession()
+    setUser(null)
+    setIsGuest(false)
+    setStatus(AUTH_STATUS.guest)
   }, [])
 
   const startGuestSession = useCallback(() => {
-    setUser(null)
     setIsGuest(true)
   }, [])
 
@@ -49,13 +124,17 @@ export function AuthProvider({ children }) {
   const value = useMemo(
     () => ({
       user,
+      status,
       isGuest,
-      isAuthenticated: Boolean(user),
+      isAuthenticated: status === AUTH_STATUS.authenticated && Boolean(user),
+      // True while GET /api/auth/me is in flight after a page load.
+      isAuthenticating: status === AUTH_STATUS.restoring,
       signIn,
+      signOut,
       startGuestSession,
       endGuestSession,
     }),
-    [user, isGuest, signIn, startGuestSession, endGuestSession],
+    [user, status, isGuest, signIn, signOut, startGuestSession, endGuestSession],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
