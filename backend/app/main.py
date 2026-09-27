@@ -20,7 +20,7 @@ from pathlib import Path
 
 from .database import DATABASE_NAME, close_database, ping_database
 from .models import ensure_user_indexes
-from .routes import auth
+from .routes import assessment, auth
 
 # Load backend/.env before reading any configuration values.
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
@@ -78,6 +78,9 @@ app.add_middleware(
 
 # Auth routes. Currently only POST /api/auth/signup exists.
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+
+# Assessment routes. POST /api/assessment/xray runs the trained knee OA model.
+app.include_router(assessment.router, prefix="/api/assessment", tags=["assessment"])
 
 
 @app.get("/", tags=["general"])

@@ -56,6 +56,10 @@ async function parseJson(response) {
 export async function request(path, { method = 'GET', body, signal, headers } = {}) {
   const url = `${getBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`
 
+  // A file upload is sent as FormData: it must be passed through untouched so
+  // the browser can add the multipart boundary, and no Content-Type is set.
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
+
   let response
 
   try {
@@ -64,10 +68,10 @@ export async function request(path, { method = 'GET', body, signal, headers } = 
       signal,
       headers: {
         Accept: 'application/json',
-        ...(body ? { 'Content-Type': 'application/json' } : {}),
+        ...(body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
         ...headers,
       },
-      ...(body ? { body: JSON.stringify(body) } : {}),
+      ...(body ? { body: isFormData ? body : JSON.stringify(body) } : {}),
     })
   } catch {
     // fetch only rejects when the server could not be reached at all.

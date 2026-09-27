@@ -16,3 +16,11 @@ bcrypt>=4.1.0,<6.0.0
 
 # JWT access tokens for login
 PyJWT>=2.9.0,<3.0.0
+
+# X-ray inference (trained EfficientNetB0 model in app/models)
+tensorflow>=2.20.0,<3.0.0
+pillow>=10.0.0,<13.0.0
+numpy>=1.26.0,<3.0.0
+
+# multipart/form-data parsing for the image upload
+python-multipart>=0.0.9,<1.0.0

@@ -1,9 +1,10 @@
-# backend (FastAPI + MongoDB + JWT)
+# backend (FastAPI + MongoDB + JWT + X-ray model)
 
 The OA Assist backend lives here. It currently provides the FastAPI app, the
 MongoDB Atlas connection, the User document model, signup, login with JWT
-issuance and one protected route. Login, password resets, refresh tokens and
-logout are **not** implemented yet.
+issuance, one protected account route and the knee X-ray assessment endpoint.
+Refresh tokens, logout, assessment history in the database and the gait and
+symptom models are **not** implemented yet.
 
 ## Structure
 
@@ -16,10 +17,15 @@ backend/
 │   ├── dependencies.py    # get_current_user: Bearer token -> MongoDB user
 │   ├── models/
 │   │   ├── __init__.py    # re-exports the models
-│   │   └── user.py        # User schema + users collection helpers
+│   │   ├── user.py        # User schema + users collection helpers
+│   │   └── best_knee_finetuned_v2.keras   # trained knee OA model (45 MB)
 │   ├── routes/
 │   │   ├── __init__.py
-│   │   └── auth.py        # POST /api/auth/signup, /login and GET /me
+│   │   ├── auth.py        # POST /api/auth/signup, /login and GET /me
+│   │   └── assessment.py  # POST /api/assessment/xray
+│   ├── services/
+│   │   ├── __init__.py
+│   │   └── xray_service.py  # model loading, preprocessing, inference
 │   └── utils/
 │       ├── __init__.py
 │       ├── security.py    # bcrypt hashing and verification
@@ -66,6 +72,7 @@ uvicorn app.main:app --reload
 | POST   | `/api/auth/signup`    | Creates an account. `201` on success, `409` if the email already exists, `422` for invalid input. |
 | POST   | `/api/auth/login`     | Verifies credentials and returns a JWT. `200` on success, `401` for a wrong email or password, `422` for invalid input. |
 | GET    | `/api/auth/me`        | Protected. Returns the authenticated user for a valid `Authorization: Bearer <token>`, `401` otherwise. |
+| POST   | `/api/assessment/xray` | Protected. Assesses an uploaded knee X-ray with the trained model. Multipart upload in `file`. |
 
 ## Database
 
@@ -220,6 +227,70 @@ Notes:
 - Rotating `JWT_SECRET` invalidates every issued token immediately.
 - On Vercel, set `JWT_SECRET` in the project environment variables alongside
   `MONGO_URI` and `CLIENT_URL`.
+
+## X-ray assessment
+
+`POST /api/assessment/xray`, defined in `app/routes/assessment.py`, with the
+model logic in `app/services/xray_service.py`.
+
+Request: `multipart/form-data` with a `file` field holding a JPG, JPEG or PNG
+image of at most 10 MB. A valid `Authorization: Bearer <access_token>` header is
+required; the route uses the same `get_current_user` dependency as
+`GET /api/auth/me`.
+
+Response:
+
+```json
+{
+  "predicted_class": "Moderate",
+  "class_index": 2,
+  "confidence": 0.75,
+  "probabilities": { "Healthy": 0.05, "Minimal": 0.1, "Moderate": 0.75, "Severe": 0.1 },
+  "oa_indication": true,
+  "interpretation": "Moderate OA-associated changes indicated.",
+  "note": "This is an AI-assisted preliminary assessment and is not a medical diagnosis."
+}
+```
+
+| Field             | Meaning                                                              |
+| ----------------- | -------------------------------------------------------------------- |
+| `predicted_class` | `Healthy`, `Minimal`, `Moderate` or `Severe` (argmax of the output).  |
+| `class_index`     | Index of that class, 0 to 3.                                          |
+| `probabilities`   | The model's softmax output per class. Nothing is recalculated.        |
+| `confidence`      | The model's probability for the predicted class.                      |
+| `oa_indication`   | `false` for Healthy, `true` for Minimal, Moderate and Severe.         |
+| `interpretation`  | Plain-language wording. It never states a diagnosis.                 |
+
+Errors:
+
+| Status | When                                                                |
+| ------ | ------------------------------------------------------------------- |
+| `400`  | No file, empty file, or the bytes are not a readable image.          |
+| `401`  | Missing, invalid or expired token.                                   |
+| `413`  | The file is larger than 10 MB.                                       |
+| `415`  | The content type and the file extension are neither JPG nor PNG.      |
+| `422`  | The `file` form field is missing.                                    |
+| `500`  | The prediction itself failed.                                        |
+| `503`  | The model could not be loaded.                                       |
+
+How it works:
+
+- The model is loaded once and kept in memory by `get_model()`, guarded by a
+  lock so a burst of first requests cannot load the file twice. Loading is lazy
+  (on the first request) because it takes about 8 seconds; a second prediction
+  takes roughly 0.1 s.
+- The training loss was serialized under the name `loss_fn`, so the service
+  passes `custom_objects={"loss_fn": focal_loss}` to `tf.keras.models.load_model`
+  and loads with `compile=False` — inference never rebuilds the optimizer. The
+  model is loaded, never retrained or modified.
+- Preprocessing follows the training notebook exactly: convert to grayscale
+  (`L`), resize to 224x224, convert back to 3 channels (`RGB`), add the batch
+  dimension, then `model.predict`, then `argmax`. No extra normalisation,
+  cropping or augmentation is applied.
+- The upload is read into memory, processed and discarded. Nothing is written to
+  disk and no assessment is stored in MongoDB yet.
+- Error responses contain a short message only: no file paths, tracebacks,
+  credentials or secrets.
 
 ## CORS
 
