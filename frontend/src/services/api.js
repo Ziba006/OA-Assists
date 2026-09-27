@@ -73,7 +73,13 @@ export async function request(path, { method = 'GET', body, signal, headers } = 
       },
       ...(body ? { body: isFormData ? body : JSON.stringify(body) } : {}),
     })
-  } catch {
+  } catch (error) {
+    // An aborted request is a caller-initiated cancellation, not a failure to
+    // reach the server. It has to keep its AbortError name, otherwise a caller
+    // that cancels on unmount cannot tell it apart from a real outage and would
+    // show "cannot reach the server" for a request it stopped on purpose.
+    if (error?.name === 'AbortError') throw error
+
     // fetch only rejects when the server could not be reached at all.
     throw new ApiError('Cannot reach the OA Assist server. Make sure the backend is running.', {
       status: 0,

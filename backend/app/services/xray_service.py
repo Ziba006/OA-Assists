@@ -30,7 +30,6 @@ from __future__ import annotations
 
 import io
 import threading
-import traceback
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -145,11 +144,6 @@ def get_model():
         try:
             import tensorflow as tf
         except ImportError as exc:  # pragma: no cover - dependency is declared
-            # TEMPORARY DEBUGGING: the real cause must be visible in the terminal.
-            print("\n=== X-ray service: TensorFlow could not be imported ===", flush=True)
-            traceback.print_exc()
-            print("=== end of TensorFlow import traceback ===\n", flush=True)
-
             raise ModelUnavailableError(
                 "The X-ray service dependencies are not installed on the server."
             ) from exc
@@ -163,11 +157,6 @@ def get_model():
                 compile=False,
             )
         except Exception as exc:  # noqa: BLE001 - never leak the traceback
-            # TEMPORARY DEBUGGING: the real cause must be visible in the terminal.
-            print("\n=== X-ray service: model could not be loaded ===", flush=True)
-            traceback.print_exc()
-            print("=== end of model loading traceback ===\n", flush=True)
-
             raise ModelUnavailableError("The X-ray model could not be loaded.") from exc
 
     return _model
@@ -228,21 +217,11 @@ def predict(image_bytes: bytes) -> XrayPrediction:
     try:
         raw = model.predict(batch, verbose=0)
     except Exception as exc:  # noqa: BLE001 - never leak the traceback
-        # TEMPORARY DEBUGGING: the real cause must be visible in the terminal.
-        print("\n=== X-ray service: prediction failed ===", flush=True)
-        traceback.print_exc()
-        print("=== end of prediction traceback ===\n", flush=True)
-
         raise InferenceError("The X-ray assessment could not be completed.") from exc
 
     try:
         scores = np.asarray(raw, dtype=np.float64).reshape(-1)
     except (TypeError, ValueError) as exc:
-        # TEMPORARY DEBUGGING: the real cause must be visible in the terminal.
-        print("\n=== X-ray service: unexpected model output ===", flush=True)
-        traceback.print_exc()
-        print("=== end of output parsing traceback ===\n", flush=True)
-
         raise InferenceError("The X-ray assessment returned an unexpected result.") from exc
 
     if scores.size != len(CLASS_NAMES):

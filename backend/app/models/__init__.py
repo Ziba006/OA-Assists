@@ -1,5 +1,30 @@
 """MongoDB document models for OA Assist."""
 
+from .assessment import (
+    ASSESSMENT_TYPES,
+    ASSESSMENTS_COLLECTION,
+    AssessmentListResponse,
+    AssessmentPublic,
+    XrayResult,
+    assessment_to_public,
+    count_patient_assessments,
+    create_xray_assessment,
+    ensure_assessment_indexes,
+    get_assessments_collection,
+    list_assessments_for_user,
+)
+from .patient import (
+    GENDERS,
+    PATIENTS_COLLECTION,
+    PatientCreate,
+    PatientPublic,
+    ensure_patient_indexes,
+    format_patient_id,
+    get_patients_collection,
+    is_valid_patient_id,
+    patient_to_public,
+    reserve_patient_id,
+)
 from .user import (
     USERS_COLLECTION,
     UserCreate,
@@ -14,14 +39,35 @@ from .user import (
 )
 
 __all__ = [
+    "ASSESSMENTS_COLLECTION",
+    "ASSESSMENT_TYPES",
+    "AssessmentListResponse",
+    "AssessmentPublic",
+    "GENDERS",
+    "PATIENTS_COLLECTION",
+    "PatientCreate",
+    "PatientPublic",
     "USERS_COLLECTION",
     "UserCreate",
     "UserInDB",
     "UserLogin",
     "UserPublic",
     "UserSession",
+    "XrayResult",
+    "assessment_to_public",
+    "count_patient_assessments",
+    "create_xray_assessment",
+    "ensure_assessment_indexes",
+    "ensure_patient_indexes",
     "ensure_user_indexes",
+    "format_patient_id",
+    "get_assessments_collection",
+    "get_patients_collection",
     "get_users_collection",
+    "is_valid_patient_id",
+    "list_assessments_for_user",
     "normalize_email",
+    "patient_to_public",
+    "reserve_patient_id",
     "utc_now",
 ]

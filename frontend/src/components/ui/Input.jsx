@@ -10,6 +10,9 @@ export default function Input({
   hint,
   disabled = false,
   required = false,
+  min,
+  max,
+  inputMode,
 }) {
   return (
     <div>
@@ -27,6 +30,9 @@ export default function Input({
         autoComplete={autoComplete}
         required={required}
         disabled={disabled}
+        min={min}
+        max={max}
+        inputMode={inputMode}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${id}-error` : undefined}
         className={`mt-1.5 w-full rounded-xl border bg-surface-warm px-4 py-2.5 text-sm text-ink-900 transition-colors duration-200 placeholder:text-ink-400 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-plum-500 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-ink-400 ${

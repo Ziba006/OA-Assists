@@ -19,8 +19,12 @@ from fastapi.responses import JSONResponse
 from pathlib import Path
 
 from .database import DATABASE_NAME, close_database, ping_database
-from .models import ensure_user_indexes
-from .routes import assessment, auth
+from .models import (
+    ensure_assessment_indexes,
+    ensure_patient_indexes,
+    ensure_user_indexes,
+)
+from .routes import assessment, auth, patients
 
 # Load backend/.env before reading any configuration values.
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
@@ -49,13 +53,15 @@ def get_cors_origins() -> list[str]:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Open the database on startup and close it cleanly on shutdown."""
-    # The MongoDB client is created lazily on first use, so only the user
-    # indexes are prepared here. A database problem must not stop the API from
-    # starting, so failures are logged and ignored.
+    # The MongoDB client is created lazily on first use, so only the indexes
+    # are prepared here. A database problem must not stop the API from starting,
+    # so failures are logged and ignored.
     try:
         await ensure_user_indexes()
+        await ensure_patient_indexes()
+        await ensure_assessment_indexes()
     except Exception as exc:  # noqa: BLE001 - startup must never crash
-        print(f"[startup] user indexes not created: {type(exc).__name__}")
+        print(f"[startup] indexes not created: {type(exc).__name__}")
 
     yield
     await close_database()
@@ -76,11 +82,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Auth routes. Currently only POST /api/auth/signup exists.
+# Auth routes. Signup, login and the protected "me" route.
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 
-# Assessment routes. POST /api/assessment/xray runs the trained knee OA model.
+# Patient routes. Every route is protected and scoped to the signed-in user.
+app.include_router(patients.router, prefix="/api/patients", tags=["patients"])
+
+# Assessment routes. POST /api/assessment/xray runs the trained knee OA model
+# and saves the result against the selected patient.
 app.include_router(assessment.router, prefix="/api/assessment", tags=["assessment"])
+
+# Saved assessment history. GET /api/assessments is mounted at its own path so
+# it reads naturally alongside the other list endpoints.
+app.include_router(
+    assessment.history_router, prefix="/api/assessments", tags=["assessments"]
+)
 
 
 @app.get("/", tags=["general"])
