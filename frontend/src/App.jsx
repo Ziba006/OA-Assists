@@ -14,6 +14,8 @@ import Symptoms from './pages/Symptoms'
 import Report from './pages/Report'
 import Reports from './pages/Reports'
 import History from './pages/History'
+import Guidance from './pages/Guidance'
+import NearbyDoctors from './pages/NearbyDoctors'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 import NotFound from './pages/NotFound'
@@ -29,6 +31,8 @@ const appPageElements = {
   [ROUTES.report]: <Report />,
   [ROUTES.reports]: <Reports />,
   [ROUTES.history]: <History />,
+  [ROUTES.guidance]: <Guidance />,
+  [ROUTES.nearbyDoctors]: <NearbyDoctors />,
   [ROUTES.profile]: <Profile />,
   [ROUTES.settings]: <Settings />,
 }

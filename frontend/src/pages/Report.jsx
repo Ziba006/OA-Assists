@@ -1,5 +1,5 @@
-﻿import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Activity,
   ArrowLeft,
@@ -10,6 +10,7 @@ import {
   Hash,
   Info,
   LayoutList,
+  MapPin,
   Plus,
   User,
   VenusAndMars,
@@ -313,6 +314,36 @@ function ImportantNote({ delay = '200ms' }) {
   );
 }
 
+/**
+ * A next-step link out of the report. It carries no data: the report's
+ * assessment content is unaffected, and the healthcare directory is a
+ * general reference rather than part of any patient's record.
+ */
+function NextStepCard() {
+  return (
+    <div className="animate-fade-up mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-plum-200/70 bg-plum-50/40 px-5 py-4 sm:px-6">
+      <div className="flex min-w-0 items-start gap-3.5">
+        <MapPin className="mt-0.5 h-4.5 w-4.5 shrink-0 text-plum-600" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-sage-900">Looking for professional care?</p>
+          <p className="mt-1 text-sm leading-relaxed text-ink-500">
+            If symptoms persist or worsen, consider discussing them with a qualified healthcare
+            professional, and find orthopedic care near you.
+          </p>
+        </div>
+      </div>
+
+      <Link
+        to={ROUTES.nearbyDoctors}
+        className={buttonClasses({ variant: 'secondary', className: 'shrink-0' })}
+      >
+        <MapPin className="h-4 w-4" aria-hidden="true" />
+        Find Nearby Doctors
+      </Link>
+    </div>
+  )
+}
+
 function LoadingScreen({ message }) {
   return (
     <div className="container-page max-w-[92rem] py-14">
@@ -574,6 +605,8 @@ export default function Report() {
 
         <ImportantNote />
 
+        <NextStepCard />
+
         <div
           className="animate-fade-up mt-10 flex flex-col items-stretch justify-between gap-3 border-t border-line/70 pt-8 sm:flex-row sm:items-center"
           style={{ animationDelay: '240ms' }}
@@ -800,6 +833,8 @@ export default function Report() {
       </section>
 
       <ImportantNote />
+
+      <NextStepCard />
 
       {/* Actions */}
       <div

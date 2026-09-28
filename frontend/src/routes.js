@@ -12,6 +12,8 @@ export const ROUTES = {
   history: '/history',
   profile: '/profile',
   settings: '/settings',
+  guidance: '/guidance',
+  nearbyDoctors: '/nearby-doctors',
 }
 
 export const HOME_SECTIONS = {
@@ -30,6 +32,8 @@ export const appRoutes = [
   ROUTES.report,
   ROUTES.reports,
   ROUTES.history,
+  ROUTES.guidance,
+  ROUTES.nearbyDoctors,
   ROUTES.profile,
   ROUTES.settings,
 ]

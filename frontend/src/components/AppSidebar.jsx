@@ -1,11 +1,13 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
+  BookOpen,
   ClipboardList,
   FileText,
   Footprints,
   History as HistoryIcon,
   Home,
   LayoutDashboard,
+  MapPin,
   ScanLine,
   Settings as SettingsIcon,
   UserRound,
@@ -30,6 +32,15 @@ const navGroups = [
       { label: 'X-Ray', to: ROUTES.xray, icon: ScanLine },
       { label: 'Gait', to: ROUTES.gait, icon: Footprints },
       { label: 'Symptoms', to: ROUTES.symptoms, icon: ClipboardList },
+    ],
+  },
+  {
+    // Support sits between the assessment modules and the activity history, so
+    // the order reads general -> assess -> get support -> review -> account.
+    label: 'Support',
+    items: [
+      { label: 'Guidance', to: ROUTES.guidance, icon: BookOpen },
+      { label: 'Nearby Doctors', to: ROUTES.nearbyDoctors, icon: MapPin },
     ],
   },
   {
