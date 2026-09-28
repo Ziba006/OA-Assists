@@ -60,6 +60,7 @@ from datetime import datetime
 from typing import Any, Literal, Mapping, Optional
 
 from bson import ObjectId
+from bson.errors import InvalidId
 from pydantic import BaseModel, Field
 from pymongo import ASCENDING, DESCENDING
 
@@ -168,6 +169,20 @@ class AssessmentListResponse(BaseModel):
     assessments: list[AssessmentPublic] = Field(default_factory=list)
 
 
+class AssessmentDeleteResponse(BaseModel):
+    """Confirmation returned after one assessment is removed.
+
+    Echoes the `patient_id` and `type` of the document that was deleted, so a
+    client that re-fetches the history can verify the right row went away
+    without a second request.
+    """
+
+    message: str = Field(..., examples=["Assessment deleted successfully"])
+    assessment_id: str = Field(..., description="Id of the assessment that was removed.")
+    patient_id: str = Field(..., examples=["OA-0001"], description="Patient the assessment belonged to.")
+    type: str = Field(..., examples=["xray"], description="Module that produced the assessment.")
+
+
 def build_xray_payload(prediction: Mapping[str, Any]) -> dict[str, Any]:
     """Build the `xray` sub-document from a prediction result.
 
@@ -271,6 +286,57 @@ def assessment_to_public(document: Mapping[str, Any]) -> AssessmentPublic:
         xray=XrayResult(**xray_payload) if xray_payload else None,
         symptoms=SymptomsAnswers(**symptoms_payload) if symptoms_payload else None,
         created_at=document["created_at"],
+    )
+
+
+def _assessment_object_id(assessment_id: str) -> Optional[ObjectId]:
+    """Turn a string id into an ObjectId, or None when it is not a valid id.
+
+    A malformed id is treated exactly like an id that does not exist: both mean
+    "there is no such assessment of yours", so a caller cannot use the shape of
+    the id to learn whether an id exists at all.
+    """
+    if not assessment_id or not isinstance(assessment_id, str):
+        return None
+
+    try:
+        return ObjectId(assessment_id)
+    except (InvalidId, TypeError):
+        return None
+
+
+async def get_assessment_for_user(
+    *, assessment_id: str, user_id: ObjectId
+) -> Optional[dict[str, Any]]:
+    """Return one assessment owned by `user_id`, or None when there is none.
+
+    The filter carries **both** `_id` and `user_id`, so ownership is decided in
+    the database query rather than by fetching first and checking afterwards.
+    A user asking for somebody else's assessment gets None, not that document.
+    """
+    object_id = _assessment_object_id(assessment_id)
+    if object_id is None:
+        return None
+
+    return await get_assessments_collection().find_one({"_id": object_id, "user_id": user_id})
+
+
+async def delete_assessment_for_user(
+    *, assessment_id: str, user_id: ObjectId
+) -> Optional[dict[str, Any]]:
+    """Delete one assessment owned by `user_id` and return the removed document.
+
+    Returns None when the id is malformed, does not exist, or belongs to another
+    user, so the caller cannot delete an assessment that is not theirs. The
+    `user_id` is part of the delete filter, which makes that a single atomic
+    operation: a document that does not match is never removed.
+    """
+    object_id = _assessment_object_id(assessment_id)
+    if object_id is None:
+        return None
+
+    return await get_assessments_collection().find_one_and_delete(
+        {"_id": object_id, "user_id": user_id}
     )
 
 

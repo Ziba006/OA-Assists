@@ -8,11 +8,15 @@ Three things live here:
   never written to MongoDB. `POST /symptoms` records the answers to the symptoms
   questionnaire against the same selected patient.
 - `history_router` is mounted at `/api/assessments` and returns the signed-in
-  user's saved assessments, newest first.
+  user's saved assessments, newest first. It also reads
+  `GET /api/assessments/{assessment_id}` for one assessment and removes one with
+  `DELETE /api/assessments/{assessment_id}`.
 
 Both are protected. `user_id` is taken from the verified token, never from the
 request, and a patient is only ever written against after the route has
-confirmed it belongs to the caller.
+confirmed it belongs to the caller. The same rule reads the other way: an
+assessment is only ever returned or deleted when the `user_id` from the verified
+token is part of the database query.
 """
 
 from __future__ import annotations
@@ -28,12 +32,15 @@ from pymongo.errors import PyMongoError
 
 from ..dependencies import get_current_user
 from ..models.assessment import (
+    AssessmentDeleteResponse,
     AssessmentListResponse,
     AssessmentPublic,
     SymptomsAnswers,
     assessment_to_public,
     create_symptoms_assessment,
     create_xray_assessment,
+    delete_assessment_for_user,
+    get_assessment_for_user,
     list_assessments_for_user,
 )
 from ..models.patient import get_patients_collection, is_valid_patient_id
@@ -60,6 +67,11 @@ PATIENT_NOT_FOUND = "Patient not found."
 DATABASE_UNAVAILABLE = "The database is currently unavailable."
 SAVE_FAILED = "The assessment result could not be saved. Please try again."
 SYMPTOMS_SAVE_FAILED = "The symptoms could not be saved. Please try again."
+
+# Returned for an id that is malformed, does not exist, or belongs to another
+# user. All three are reported identically on purpose, so the API never confirms
+# that somebody else's assessment id is real.
+ASSESSMENT_NOT_FOUND = "Assessment not found."
 
 
 class SymptomsRequest(BaseModel):
@@ -391,3 +403,92 @@ async def read_assessments(
     ]
 
     return AssessmentListResponse(assessments=assessments)
+
+
+@history_router.get(
+    "/{assessment_id}",
+    response_model=AssessmentPublic,
+    status_code=status.HTTP_200_OK,
+    summary="Read one of the authenticated user's assessments by id",
+)
+async def read_assessment(
+    assessment_id: str,
+    current_user: UserSession = Depends(get_current_user),
+) -> AssessmentPublic:
+    """Return a single saved assessment belonging to the signed-in user.
+
+    Requires `Authorization: Bearer <access_token>`.
+
+    This is what the report page uses when it is opened for one assessment
+    (`/report?assessment_id=...`). The id is resolved server side, so the page
+    always shows data the backend has confirmed this account may read, rather
+    than anything assembled on the client.
+
+    - `404` when the id is malformed, does not exist, or belongs to another user.
+      All three are reported identically so the API never confirms that another
+      user's assessment id is real.
+    """
+    owner_id = _owner_id(current_user)
+
+    try:
+        document = await get_assessment_for_user(assessment_id=assessment_id, user_id=owner_id)
+    except PyMongoError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=DATABASE_UNAVAILABLE,
+        ) from None
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ASSESSMENT_NOT_FOUND,
+        )
+
+    return assessment_to_public(document)
+
+
+@history_router.delete(
+    "/{assessment_id}",
+    response_model=AssessmentDeleteResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Delete one of the authenticated user's assessments",
+)
+async def delete_assessment(
+    assessment_id: str,
+    current_user: UserSession = Depends(get_current_user),
+) -> AssessmentDeleteResponse:
+    """Delete a single saved assessment owned by the signed-in user.
+
+    Requires `Authorization: Bearer <access_token>`.
+
+    Only the assessment is removed. The patient it belonged to is left untouched,
+    and the patient's other assessments are unaffected, because the delete is
+    filtered on the assessment's own id.
+
+    - `404` when the id is malformed, does not exist, or belongs to another user.
+      The ownership check is part of the delete filter rather than a check made
+      before it, so a user can never delete somebody else's assessment, and a
+      document that does not match is never removed at all.
+    """
+    owner_id = _owner_id(current_user)
+
+    try:
+        document = await delete_assessment_for_user(assessment_id=assessment_id, user_id=owner_id)
+    except PyMongoError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=DATABASE_UNAVAILABLE,
+        ) from None
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ASSESSMENT_NOT_FOUND,
+        )
+
+    return AssessmentDeleteResponse(
+        message="Assessment deleted successfully",
+        assessment_id=str(document["_id"]),
+        patient_id=document["patient_id"],
+        type=document["type"],
+    )

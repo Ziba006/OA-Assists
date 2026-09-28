@@ -1,4 +1,4 @@
-/**
+﻿/**
  * The symptoms questionnaire.
  *
  * One definition, used for three things that must never drift apart:
@@ -36,6 +36,7 @@ const FREQUENCY_OPTIONS = ['Never', 'Sometimes', 'Often']
 export const SYMPTOM_QUESTIONS = [
   {
     key: 'knee',
+    short: 'Knee',
     number: 1,
     section: 'Your knee',
     prompt: 'Which knee?',
@@ -44,6 +45,7 @@ export const SYMPTOM_QUESTIONS = [
   },
   {
     key: 'pain_score',
+    short: 'Pain score',
     number: 2,
     section: 'Your knee',
     prompt: 'How would you rate your knee pain?',
@@ -52,6 +54,7 @@ export const SYMPTOM_QUESTIONS = [
   },
   {
     key: 'symptom_duration',
+    short: 'Duration',
     number: 3,
     section: 'Your knee',
     prompt: 'How long have you had knee symptoms?',
@@ -65,6 +68,7 @@ export const SYMPTOM_QUESTIONS = [
   },
   {
     key: 'stiffness',
+    short: 'Stiffness',
     number: 4,
     section: 'Stiffness and swelling',
     prompt: 'Do you experience knee stiffness?',
@@ -72,6 +76,7 @@ export const SYMPTOM_QUESTIONS = [
   },
   {
     key: 'stiffness_after_rest',
+    short: 'Stiffness after rest',
     number: 5,
     section: 'Stiffness and swelling',
     prompt: 'Is the knee stiff after waking up or resting?',
@@ -79,6 +84,7 @@ export const SYMPTOM_QUESTIONS = [
   },
   {
     key: 'swelling',
+    short: 'Swelling',
     number: 6,
     section: 'Stiffness and swelling',
     prompt: 'Do you experience knee swelling?',
@@ -86,6 +92,7 @@ export const SYMPTOM_QUESTIONS = [
   },
   {
     key: 'walking_difficulty',
+    short: 'Walking',
     number: 7,
     section: 'Movement',
     prompt: 'Do you have difficulty walking?',
@@ -93,6 +100,7 @@ export const SYMPTOM_QUESTIONS = [
   },
   {
     key: 'stairs_difficulty',
+    short: 'Stairs',
     number: 8,
     section: 'Movement',
     prompt: 'Do you have difficulty climbing stairs?',
@@ -100,6 +108,7 @@ export const SYMPTOM_QUESTIONS = [
   },
   {
     key: 'chair_difficulty',
+    short: 'Standing from chair',
     number: 9,
     section: 'Movement',
     prompt: 'Do you have difficulty standing up from a chair?',
@@ -107,6 +116,7 @@ export const SYMPTOM_QUESTIONS = [
   },
   {
     key: 'clicking_grinding',
+    short: 'Clicking / grinding',
     number: 10,
     section: 'Other signs and history',
     prompt: 'Do you notice clicking/grinding in the knee?',
@@ -114,6 +124,7 @@ export const SYMPTOM_QUESTIONS = [
   },
   {
     key: 'previous_injury_surgery',
+    short: 'Previous injury / surgery',
     number: 11,
     section: 'Other signs and history',
     prompt: 'Have you had a previous knee injury or surgery?',
@@ -121,6 +132,7 @@ export const SYMPTOM_QUESTIONS = [
   },
   {
     key: 'daily_activity_impact',
+    short: 'Daily activity',
     number: 12,
     section: 'Other signs and history',
     prompt: 'Does knee pain affect your daily activities?',
@@ -164,4 +176,19 @@ export function countAnswered(answers) {
 
     return true
   }).length
+}
+
+/**
+ * One recorded answer, in the words the patient chose.
+ *
+ * The pain scale is stored as a number, so it is shown as the number plus the
+ * scale's own wording. Nothing is added, ranked or interpreted: this only
+ * formats what the backend already holds.
+ */
+export function formatSymptomAnswer(question, value) {
+  if (value === undefined || value === null || value === '') return 'Not recorded'
+
+  if (question.kind === 'scale') return `${value} out of 10`
+
+  return String(value)
 }

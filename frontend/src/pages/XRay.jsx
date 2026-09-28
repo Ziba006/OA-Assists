@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   Activity,
   AlertCircle,
@@ -16,7 +16,6 @@ import {
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
 import PageHeader from '../components/ui/PageHeader'
-import AssessmentReport from '../components/AssessmentReport'
 import PatientHeader from '../components/PatientHeader'
 import PatientOverview from '../components/PatientOverview'
 import PatientSelect from '../components/PatientSelect'
@@ -25,7 +24,7 @@ import { useAuth } from '../hooks/useAuth'
 import { usePatient } from '../hooks/usePatient'
 import { ROUTES } from '../routes'
 import { ApiError } from '../services/api'
-import { listAssessments } from '../services/assessmentService'
+import { deleteAssessment, listAssessments } from '../services/assessmentService'
 import { analyzeXray } from '../services/xrayService'
 import { createPatient, listPatients, toPatient, toPatientList } from '../services/patientService'
 import { DISCLAIMER, RESULT_COPY } from '../constants/resultCopy'
@@ -40,7 +39,6 @@ const VIEW = {
   patients: 'patients',
   overview: 'overview',
   xray: 'xray',
-  report: 'report',
 }
 
 const HEALTHY_CLASS = 'Healthy'
@@ -154,12 +152,22 @@ export default function XRay() {
   // Where the page is, and the saved assessment being reported on. A patient
   // carried in from another module (symptoms, report) lands straight on that
   // patient's overview; with no patient, the list is the starting point.
-  const [view, setView] = useState(() => (selectedPatient ? VIEW.overview : VIEW.patients))
+  //
+  // `location.state.startNewXray` is how the report page asks to skip the
+  // overview and open the upload. It is router state rather than a URL
+  // parameter, so nothing about the patient ends up in the address bar.
+  const location = useLocation()
+  const navigate = useNavigate()
+  const wantsNewXray = location.state?.startNewXray === true
+  const [view, setView] = useState(() => {
+    if (!selectedPatient) return VIEW.patients
+
+    return wantsNewXray ? VIEW.xray : VIEW.overview
+  })
   const [assessments, setAssessments] = useState([])
   const [historyError, setHistoryError] = useState('')
   const [areHistorySettled, setAreHistorySettled] = useState(false)
   const [historyToken, setHistoryToken] = useState(0)
-  const [reportedAssessment, setReportedAssessment] = useState(null)
 
   // Derived rather than assigned inside an effect, so no render is triggered by
   // the fetch starting.
@@ -176,6 +184,15 @@ export default function XRay() {
     },
     [previewUrl],
   )
+
+  // The "start a new X-ray" intent is consumed on arrival. Clearing it from the
+  // history entry means coming back to /xray later opens the overview again
+  // rather than jumping straight into another upload.
+  useEffect(() => {
+    if (wantsNewXray) {
+      navigate(ROUTES.xray, { replace: true, state: null })
+    }
+  }, [wantsNewXray, navigate])
 
   // Cancel an in-flight analysis if the page is left.
   useEffect(
@@ -244,6 +261,16 @@ export default function XRay() {
   const handleRetryHistory = () => {
     setAreHistorySettled(false)
     setHistoryError('')
+    setHistoryToken((current) => current + 1)
+  }
+
+  // Remove one assessment. The row leaves the list as soon as the backend
+  // confirms the delete, and the history is re-read so the list on screen is
+  // what is actually stored rather than a local guess.
+  const handleDeleteAssessment = async (assessment) => {
+    await deleteAssessment(assessment.id)
+
+    setAssessments((current) => current.filter((item) => item.id !== assessment.id))
     setHistoryToken((current) => current + 1)
   }
 
@@ -374,7 +401,6 @@ export default function XRay() {
     setAssessments([])
     setAreHistorySettled(false)
     setHistoryError('')
-    setReportedAssessment(null)
     clearSelection()
   }
 
@@ -386,7 +412,6 @@ export default function XRay() {
     setAssessments([])
     setAreHistorySettled(false)
     setHistoryError('')
-    setReportedAssessment(null)
     clearSelection()
     setView(VIEW.xray)
   }
@@ -399,20 +424,16 @@ export default function XRay() {
 
   const handleChangePatient = () => {
     setSelectedPatient(null)
-    setReportedAssessment(null)
     setAssessments([])
     setView(VIEW.patients)
     clearSelection()
   }
 
+  // "View Report" opens the report page for that one assessment. The id travels
+  // in the query string, so the report page is the same page the Reports section
+  // uses and the report page resolves the id against the signed-in user.
   const handleViewReport = (assessment) => {
-    setReportedAssessment(assessment)
-    setView(VIEW.report)
-  }
-
-  const handleBackFromReport = () => {
-    setReportedAssessment(null)
-    setView(VIEW.overview)
+    navigate(`${ROUTES.report}?assessment_id=${encodeURIComponent(assessment.id)}`)
   }
 
   // Returning to the overview re-reads the history, so a result saved a moment
@@ -500,17 +521,11 @@ export default function XRay() {
             onRetry={handleRetryHistory}
             onNewAssessment={handleStartNewAssessment}
             onViewReport={handleViewReport}
+            onDeleteAssessment={handleDeleteAssessment}
             onChangePatient={handleChangePatient}
           />
         ) : null}
 
-        {isAuthenticated && selectedPatient && view === VIEW.report ? (
-          <AssessmentReport
-            assessment={reportedAssessment}
-            patient={selectedPatient}
-            onBack={handleBackFromReport}
-          />
-        ) : null}
 
         {isAuthenticated && selectedPatient && view === VIEW.xray ? (
           <PatientHeader

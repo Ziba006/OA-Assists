@@ -51,3 +51,42 @@ export async function listAssessments(patientId, { signal } = {}) {
     ? payload.assessments.map(toAssessment).filter(Boolean)
     : []
 }
+
+/**
+ * GET /api/assessments/{assessmentId}
+ *
+ * Reads one assessment back from the server rather than reusing a copy already
+ * on the client, so the report page always shows what the backend has
+ * confirmed this account may read. The backend resolves the id against the
+ * signed-in user and answers 404 for anybody else's assessment.
+ *
+ * Returns null when the assessment no longer exists.
+ */
+export async function getAssessment(assessmentId, { signal } = {}) {
+  if (!assessmentId) return null
+
+  try {
+    return toAssessment(await authRequest(`/api/assessments/${encodeURIComponent(assessmentId)}`, { signal }))
+  } catch (error) {
+    // A deleted or foreign assessment is simply not reportable; the caller
+    // shows the not-found state rather than a transport error.
+    if (error?.status === 404) return null
+
+    throw error
+  }
+}
+
+/**
+ * DELETE /api/assessments/{assessmentId}
+ *
+ * Removes one assessment. The patient is never touched, and the backend
+ * refuses with 404 when the assessment belongs to a different account.
+ *
+ * Returns the confirmation the API sends back, so a caller can check that the
+ * row it removed from its list is really the row the server deleted.
+ */
+export async function deleteAssessment(assessmentId) {
+  if (!assessmentId) throw new Error('An assessment id is required to delete an assessment.')
+
+  return authRequest(`/api/assessments/${encodeURIComponent(assessmentId)}`, { method: 'DELETE' })
+}
