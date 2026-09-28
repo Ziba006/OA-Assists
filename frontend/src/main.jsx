@@ -5,13 +5,16 @@ import './index.css'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext'
 import { AssessmentProvider } from './context/AssessmentContext'
+import { PatientProvider } from './context/PatientContext'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
         <AssessmentProvider>
-          <App />
+          <PatientProvider>
+            <App />
+          </PatientProvider>
         </AssessmentProvider>
       </AuthProvider>
     </BrowserRouter>

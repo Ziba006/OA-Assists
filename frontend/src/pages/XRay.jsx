@@ -22,6 +22,7 @@ import PatientOverview from '../components/PatientOverview'
 import PatientSelect from '../components/PatientSelect'
 import { buttonClasses } from '../components/ui/buttonStyles'
 import { useAuth } from '../hooks/useAuth'
+import { usePatient } from '../hooks/usePatient'
 import { ROUTES } from '../routes'
 import { ApiError } from '../services/api'
 import { listAssessments } from '../services/assessmentService'
@@ -145,10 +146,15 @@ export default function XRay() {
   const [reloadToken, setReloadToken] = useState(0)
   const [isCreatingPatient, setIsCreatingPatient] = useState(false)
   const [createPatientError, setCreatePatientError] = useState('')
-  const [selectedPatient, setSelectedPatient] = useState(null)
+  // Shared with the symptoms and report pages so the patient survives a
+  // navigation without ever appearing in the URL. In memory only, so a refresh
+  // clears it and the next visit starts at patient selection.
+  const { patient: selectedPatient, setPatient: setSelectedPatient } = usePatient()
 
-  // Where the page is, and the saved assessment being reported on.
-  const [view, setView] = useState(VIEW.patients)
+  // Where the page is, and the saved assessment being reported on. A patient
+  // carried in from another module (symptoms, report) lands straight on that
+  // patient's overview; with no patient, the list is the starting point.
+  const [view, setView] = useState(() => (selectedPatient ? VIEW.overview : VIEW.patients))
   const [assessments, setAssessments] = useState([])
   const [historyError, setHistoryError] = useState('')
   const [areHistorySettled, setAreHistorySettled] = useState(false)
@@ -704,26 +710,30 @@ export default function XRay() {
               <p className="mt-4 text-xs leading-relaxed text-ink-400">{DISCLAIMER}</p>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  disabled
+                {/*
+                  Navigation only. Both modules are placeholders today, so
+                  neither performs any work here: they just carry the selected
+                  patient to the next page.
+                */}
+                <Link
+                  to={ROUTES.symptoms}
                   className={buttonClasses({ variant: 'primary', size: 'md', className: 'w-full' })}
                 >
                   <ClipboardList className="h-4 w-4" aria-hidden="true" />
                   Add Symptoms
-                </button>
-                <button
-                  type="button"
-                  disabled
+                </Link>
+                <Link
+                  to={ROUTES.report}
                   className={buttonClasses({ variant: 'secondary', size: 'md', className: 'w-full' })}
                 >
                   <FileText className="h-4 w-4" aria-hidden="true" />
                   View Full Report
-                </button>
+                </Link>
               </div>
 
               <p className="mt-4 text-xs text-ink-400">
-                Both actions open once the assessment modules are connected.
+                Both actions open for {selectedPatient.name} &middot; {selectedPatient.patient_id}.
+                The modules themselves are still placeholders.
               </p>
             </div>
           </Card>

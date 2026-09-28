@@ -99,7 +99,9 @@ export default function PatientOverview({
                       Result:{' '}
                       {assessment.xray
                         ? resultHeadline(assessment.xray.oa_indication)
-                        : 'Result unavailable'}
+                        : // Symptoms are recorded, not interpreted, so the row says
+                          // only that the responses exist.
+                          'Responses recorded'}
                     </p>
                   </div>
 

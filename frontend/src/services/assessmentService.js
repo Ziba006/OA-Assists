@@ -30,6 +30,8 @@ function toAssessment(raw) {
           note: raw.xray.note,
         }
       : null,
+    // Recorded answers, kept exactly as stored. Nothing is derived from them.
+    symptoms: raw.symptoms ? { ...raw.symptoms } : null,
     created_at: raw.created_at,
   }
 }

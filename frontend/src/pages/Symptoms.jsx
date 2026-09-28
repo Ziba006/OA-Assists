@@ -1,141 +1,255 @@
-import { Link } from 'react-router-dom'
-import { ClipboardList, Info, Lock } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { AlertCircle, ArrowLeft, CheckCircle2, FileText, Loader2, Save } from 'lucide-react'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
 import PageHeader from '../components/ui/PageHeader'
-import ModuleStageList from '../components/ModuleStageList'
+import PatientContextBar from '../components/PatientContextBar'
+import SymptomQuestionnaire from '../components/SymptomQuestionnaire'
 import { buttonClasses } from '../components/ui/buttonStyles'
+import { usePatient } from '../hooks/usePatient'
+import { countAnswered, isQuestionnaireComplete, REQUIRED_SYMPTOM_KEYS } from '../constants/symptomQuestions'
+import { saveSymptoms } from '../services/symptomService'
+import { ApiError } from '../services/api'
+import { DISCLAIMER } from '../constants/resultCopy'
 import { ROUTES } from '../routes'
 
-const questions = [
-  {
-    title: 'Pain intensity',
-    description: 'How would you rate pain in the assessed joint over the past week?',
-  },
-  {
-    title: 'Morning stiffness',
-    description: 'How long does stiffness last after waking up?',
-  },
-  {
-    title: 'Mobility and daily activity',
-    description: 'Which daily activities are affected by joint discomfort?',
-  },
-  {
-    title: 'Swelling and warmth',
-    description: 'Have you noticed swelling or warmth around the joint?',
-  },
-]
+const EMPTY_ANSWERS = REQUIRED_SYMPTOM_KEYS.reduce((answers, key) => ({ ...answers, [key]: '' }), {})
 
-const stages = [
-  {
-    title: 'Guided question flow',
-    description: 'Step-by-step questions with plain language and progress indication.',
-  },
-  {
-    title: 'Answer validation',
-    description: 'Responses are checked for completeness before they are used.',
-  },
-  {
-    title: 'Symptom summary',
-    description: 'A structured symptom summary is added to the combined preliminary assessment.',
-  },
-]
+/** Turn a failed save into a short message the user can act on. */
+function describeError(error) {
+  if (!(error instanceof ApiError)) {
+    return 'Something went wrong while saving your responses. Please try again.'
+  }
 
+  if (error.status === 0) {
+    return 'Cannot reach the OA Assist server. Make sure the backend is running, then try again.'
+  }
+
+  if (error.status === 401) {
+    return 'Your session has expired. Please sign in again.'
+  }
+
+  if (error.status === 404) {
+    return 'That patient is no longer available. Please choose another patient.'
+  }
+
+  if (error.status === 422) {
+    return 'Some answers were not accepted. Please review the questionnaire and try again.'
+  }
+
+  return error.message
+}
+
+/**
+ * Symptoms assessment.
+ *
+ * The questionnaire is recorded against the currently selected patient. Nothing
+ * is interpreted here: there is no score, no severity and no OA conclusion, and
+ * the confirmation says exactly that much.
+ *
+ * The patient lives in memory only, so a page refresh or a direct visit with no
+ * patient selected sends the user back to patient selection rather than showing
+ * a form with nowhere to save to.
+ */
 export default function Symptoms() {
+  const { patient } = usePatient()
+  const navigate = useNavigate()
+
+  const [answers, setAnswers] = useState(EMPTY_ANSWERS)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState(null)
+
+  // Lets an in-flight save be cancelled if the page is left.
+  const activeRequest = useRef(null)
+
+  useEffect(
+    () => () => {
+      activeRequest.current?.abort()
+    },
+    [],
+  )
+
+  // The patient is required, so a missing one is a redirect, not a broken page.
+  if (!patient) {
+    return <Navigate to={ROUTES.xray} replace />
+  }
+
+  const isComplete = isQuestionnaireComplete(answers)
+  const answered = countAnswered(answers)
+  const total = REQUIRED_SYMPTOM_KEYS.length
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+
+    if (!isComplete || isSaving) return
+
+    setError('')
+    setIsSaving(true)
+
+    const controller = new AbortController()
+    activeRequest.current = controller
+
+    try {
+      const assessment = await saveSymptoms(patient.patient_id, answers, {
+        signal: controller.signal,
+      })
+
+      setSaved(assessment)
+    } catch (requestError) {
+      if (controller.signal.aborted || requestError?.name === 'AbortError') return
+
+      setError(describeError(requestError))
+    } finally {
+      activeRequest.current = null
+      setIsSaving(false)
+    }
+  }
+
+  // ---- confirmation -----------------------------------------------------
+  if (saved) {
+    return (
+      <div className="container-page py-10 sm:py-12">
+        <PageHeader
+          eyebrow="Assessment module"
+          title="Symptoms Assessment"
+          subtitle="Your responses have been recorded for this patient."
+          status="Recorded"
+          statusTone="sage"
+        />
+
+        <div className="mt-8 space-y-6">
+          <PatientContextBar title="Symptoms assessment" />
+
+          <Card className="animate-fade-up p-6 sm:p-8">
+            <div className="flex items-start gap-4">
+              <span
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-success-100 bg-success-100 text-sage-700"
+                aria-hidden="true"
+              >
+                <CheckCircle2 className="h-7 w-7" />
+              </span>
+
+              <div className="min-w-0">
+                <h2 className="text-xl font-semibold tracking-tight text-sage-900">
+                  Symptoms recorded
+                </h2>
+                <p className="mt-1.5 text-sm leading-relaxed text-ink-700">
+                  Your responses have been saved for {patient.name} &middot; {patient.patient_id}.
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-5 rounded-xl border border-line bg-surface-muted px-4 py-3 text-xs leading-relaxed text-ink-500">
+              Your answers were stored exactly as given. They have not been scored and no conclusion
+              has been drawn from them. {DISCLAIMER}
+            </p>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <Link
+                to={ROUTES.report}
+                className={buttonClasses({ variant: 'primary', size: 'md', className: 'w-full' })}
+              >
+                <FileText className="h-4 w-4" aria-hidden="true" />
+                View Full Report
+              </Link>
+
+              <Link
+                to={ROUTES.xray}
+                className={buttonClasses({ variant: 'secondary', size: 'md', className: 'w-full' })}
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                Back to Patient
+              </Link>
+            </div>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // ---- questionnaire ----------------------------------------------------
   return (
     <div className="container-page py-10 sm:py-12">
       <PageHeader
         eyebrow="Assessment module"
-        title="Symptom Assessment"
-        step="Step 3 of 3"
-        subtitle="Answer a few questions about your symptoms and mobility."
-        status="Questionnaire planned"
+        title="Symptoms Assessment"
+        subtitle="Answer the questions about your knee. Your responses are recorded, not diagnosed."
+        status="Questionnaire"
         statusTone="brand"
-        backTo={ROUTES.dashboard}
       />
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1.35fr_1fr]">
-        <div className="space-y-4">
-          {questions.map((question, index) => (
-            <Card key={question.title} className="p-6 sm:p-7">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span
-                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-plum-50 text-xs font-semibold text-plum-700"
-                    aria-hidden="true"
-                  >
-                    {index + 1}
-                  </span>
-                  <h2 className="text-base font-semibold text-sage-900">{question.title}</h2>
-                </div>
-                <Badge tone="neutral" dot>
-                  Not available yet
-                </Badge>
-              </div>
+      <div className="mt-8 space-y-6">
+        <PatientContextBar title="Symptoms assessment" />
 
-              <p className="mt-3 text-sm leading-relaxed text-ink-500">{question.description}</p>
-
-              <div className="mt-4 flex flex-wrap gap-2" aria-hidden="true">
-                {['None', 'Mild', 'Moderate', 'Severe'].map((option) => (
-                  <span
-                    key={option}
-                    className="rounded-lg border border-sage-200 bg-surface-warm px-3.5 py-2 text-sm text-ink-500"
-                  >
-                    {option}
-                  </span>
-                ))}
-              </div>
-            </Card>
-          ))}
-
-          <Card className="flex flex-col items-center gap-3 px-6 py-8 text-center">
-            <ClipboardList className="h-6 w-6 text-sage-300" aria-hidden="true" />
-            <p className="text-sm font-medium text-sage-900">Questionnaire coming next</p>
-            <p className="max-w-md text-xs leading-relaxed text-ink-500">
-              These cards are layout placeholders. No medical scoring or questionnaire logic has
-              been implemented yet.
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-ink-500">
+              <span className="font-medium text-sage-900">
+                {answered} of {total}
+              </span>{' '}
+              questions answered
             </p>
-            <span
-              className={`${buttonClasses({ variant: 'primary', className: 'pointer-events-none opacity-70' })}`}
-            >
-              Submit answers
-            </span>
-          </Card>
-        </div>
 
-        <Card className="h-fit p-6 sm:p-8">
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-base font-semibold text-sage-900">Module status</h2>
+            <Badge tone={isComplete ? 'success' : 'neutral'} dot>
+              {isComplete ? 'Ready to save' : 'All questions required'}
+            </Badge>
           </div>
-          <p className="mt-1.5 text-sm text-ink-500">
-            How questionnaire answers will flow into the combined assessment.
+
+          <p className="mt-1.5 text-xs text-ink-400">
+            Questions marked <span className="text-error-700">*</span> are required.
           </p>
 
-          <ModuleStageList stages={stages} className="mt-6" />
-
-          <div className="mt-6 flex gap-3 rounded-xl border border-line bg-surface px-4 py-4">
-            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-plum-600" aria-hidden="true" />
-            <p className="text-xs leading-relaxed text-ink-500">
-              Guest answers stay in the current session only and are never written to an account or
-              a database.
-            </p>
+          <div className="mt-6">
+            <SymptomQuestionnaire
+              answers={answers}
+              onChange={setAnswers}
+              disabled={isSaving}
+            />
           </div>
 
-          <div className="mt-4 flex gap-3 rounded-xl border border-line bg-surface px-4 py-4">
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-plum-600" aria-hidden="true" />
-            <p className="text-xs leading-relaxed text-ink-500">
-              OA Assist provides AI-assisted preliminary assessment and does not replace evaluation
-              or diagnosis by a qualified healthcare professional.
-            </p>
-          </div>
+          {error ? (
+            <div
+              role="alert"
+              className="mt-6 flex gap-3 rounded-xl border border-error-100 bg-error-100 px-4 py-3"
+            >
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-error-700" aria-hidden="true" />
+              <p className="text-sm text-error-700">{error}</p>
+            </div>
+          ) : null}
 
-          <Link
-            to={ROUTES.dashboard}
-            className={buttonClasses({ variant: 'secondary', className: 'mt-6 w-full' })}
-          >
-            Back to Dashboard
-          </Link>
-        </Card>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button
+              type="submit"
+              disabled={!isComplete || isSaving}
+              className={buttonClasses({ variant: 'primary', size: 'md', className: 'w-full sm:w-auto' })}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" aria-hidden="true" />
+                  Save Symptoms
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate(ROUTES.xray)}
+              disabled={isSaving}
+              className={buttonClasses({ variant: 'ghost', size: 'md' })}
+            >
+              Back to Patient
+            </button>
+          </div>
+        </form>
+
+        <p className="text-xs leading-relaxed text-ink-400">{DISCLAIMER}</p>
       </div>
     </div>
   )

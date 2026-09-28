@@ -1,11 +1,12 @@
 """Assessment routes for OA Assist.
 
-Two things live here:
+Three things live here:
 
 - `router` is mounted at `/api/assessment`. `POST /xray` runs the trained knee OA
   model over an uploaded image and, when it succeeds, saves the result against
   the selected patient. The image is processed in memory and discarded: it is
-  never written to MongoDB.
+  never written to MongoDB. `POST /symptoms` records the answers to the symptoms
+  questionnaire against the same selected patient.
 - `history_router` is mounted at `/api/assessments` and returns the signed-in
   user's saved assessments, newest first.
 
@@ -29,7 +30,9 @@ from ..dependencies import get_current_user
 from ..models.assessment import (
     AssessmentListResponse,
     AssessmentPublic,
+    SymptomsAnswers,
     assessment_to_public,
+    create_symptoms_assessment,
     create_xray_assessment,
     list_assessments_for_user,
 )
@@ -56,6 +59,37 @@ INVALID_PATIENT_ID = "Invalid patient ID. Expected the format OA-0001."
 PATIENT_NOT_FOUND = "Patient not found."
 DATABASE_UNAVAILABLE = "The database is currently unavailable."
 SAVE_FAILED = "The assessment result could not be saved. Please try again."
+SYMPTOMS_SAVE_FAILED = "The symptoms could not be saved. Please try again."
+
+
+class SymptomsRequest(BaseModel):
+    """Body of `POST /api/assessment/symptoms`.
+
+    `user_id` is deliberately not a field. Pydantic ignores unknown keys, so a
+    `user_id` sent by the client is discarded and the owner always comes from the
+    verified token.
+    """
+
+    patient_id: str = Field(
+        ...,
+        examples=["OA-0001"],
+        description="Patient the answers belong to.",
+    )
+    symptoms: SymptomsAnswers = Field(..., description="Answers to the symptoms questionnaire.")
+
+
+class SymptomsResponse(BaseModel):
+    """The symptoms assessment that was just recorded.
+
+    The answers are echoed back exactly as stored. There is no score, severity
+    or diagnostic field, because recording symptoms is not diagnosing them.
+    """
+
+    assessment_id: str = Field(..., description="Id of the assessment just saved.")
+    patient_id: str = Field(..., examples=["OA-0001"])
+    type: str = Field(default="symptoms", examples=["symptoms"])
+    symptoms: SymptomsAnswers
+    created_at: datetime = Field(..., description="When the answers were saved.")
 
 
 class XrayResponse(BaseModel):
@@ -261,6 +295,56 @@ async def assess_xray(
         oa_indication=result.oa_indication,
         interpretation=result.interpretation,
         note=result.note,
+        created_at=document["created_at"],
+    )
+
+
+@router.post(
+    "/symptoms",
+    response_model=SymptomsResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Record the symptoms questionnaire answers for a patient",
+)
+async def record_symptoms(
+    payload: SymptomsRequest,
+    current_user: UserSession = Depends(get_current_user),
+) -> SymptomsResponse:
+    """Save the answers to the symptoms questionnaire against the selected patient.
+
+    Requires a valid access token (`Authorization: Bearer <access_token>`).
+
+    The answers are **recorded, not interpreted**. Nothing is scored and no OA
+    conclusion is derived: the stored document is exactly what the patient
+    reported, and the response carries no diagnostic field.
+
+    Order of operations:
+
+    1. the patient id is validated and checked against the signed-in user, so
+       answers can never be saved for somebody else's patient
+    2. the answers are inserted into the `assessments` collection as a document
+       of `type` "symptoms"
+    """
+    owner_id = _owner_id(current_user)
+    patient_id = await _require_owned_patient(payload.patient_id, owner_id)
+
+    # model_dump gives the stored keys and nothing else: no extra field can be
+    # smuggled into the document, and no derived field is added.
+    answers = payload.symptoms.model_dump()
+
+    try:
+        document = await create_symptoms_assessment(
+            user_id=owner_id, patient_id=patient_id, symptoms=answers
+        )
+    except PyMongoError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=SYMPTOMS_SAVE_FAILED,
+        ) from None
+
+    return SymptomsResponse(
+        assessment_id=str(document["_id"]),
+        patient_id=patient_id,
+        symptoms=SymptomsAnswers(**answers),
         created_at=document["created_at"],
     )
 

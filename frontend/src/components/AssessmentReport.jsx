@@ -3,12 +3,27 @@ import Card from './ui/Card'
 import Badge from './ui/Badge'
 import { buttonClasses } from './ui/buttonStyles'
 import { DISCLAIMER, resultHeadline } from '../constants/resultCopy'
+import { SYMPTOM_QUESTIONS } from '../constants/symptomQuestions'
 import { describePatient, formatDateTime } from '../constants/format'
 
 const TYPE_LABELS = {
   xray: 'X-Ray Assessment',
   symptoms: 'Symptoms Assessment',
   gait: 'Gait Assessment',
+}
+
+/**
+ * One recorded answer, in the words the patient chose.
+ *
+ * The pain scale is stored as a number, so it is shown as the number plus the
+ * scale's own wording. Nothing is added, ranked or interpreted.
+ */
+function formatAnswer(question, value) {
+  if (value === undefined || value === null || value === '') return 'Not recorded'
+
+  if (question.kind === 'scale') return `${value} out of 10`
+
+  return String(value)
 }
 
 /** Label/value row used for the plain details. */
@@ -33,6 +48,7 @@ export default function AssessmentReport({ assessment, patient, onBack }) {
   if (!assessment) return null
 
   const xray = assessment.xray
+  const symptoms = assessment.symptoms
 
   return (
     <Card className="p-6 sm:p-8">
@@ -56,7 +72,7 @@ export default function AssessmentReport({ assessment, patient, onBack }) {
         </div>
 
         <Badge tone="warning" dot>
-          Preliminary
+          {xray ? 'Preliminary' : 'Recorded'}
         </Badge>
       </div>
 
@@ -79,6 +95,22 @@ export default function AssessmentReport({ assessment, patient, onBack }) {
         <div className="mt-6 rounded-2xl border border-line bg-surface-muted px-4 py-1">
           <DetailRow label="X-ray result">{resultHeadline(xray.oa_indication)}</DetailRow>
           <DetailRow label="Interpretation">{xray.interpretation}</DetailRow>
+        </div>
+      ) : symptoms ? (
+        <div className="mt-6">
+          <p className="text-sm font-semibold text-sage-900">Recorded responses</p>
+          <p className="mt-1 text-xs leading-relaxed text-ink-500">
+            Exactly what the patient answered. These answers have not been scored and no conclusion
+            has been drawn from them.
+          </p>
+
+          <dl className="mt-4 rounded-2xl border border-line bg-surface-muted px-4 py-1">
+            {SYMPTOM_QUESTIONS.map((question) => (
+              <DetailRow key={question.key} label={question.prompt}>
+                {formatAnswer(question, symptoms[question.key])}
+              </DetailRow>
+            ))}
+          </dl>
         </div>
       ) : (
         <p className="mt-6 rounded-2xl border border-line bg-surface-muted px-4 py-6 text-center text-sm text-ink-500">

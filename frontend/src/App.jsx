@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard'
 import XRay from './pages/XRay'
 import Gait from './pages/Gait'
 import Symptoms from './pages/Symptoms'
+import Report from './pages/Report'
 import Reports from './pages/Reports'
 import History from './pages/History'
 import Profile from './pages/Profile'
@@ -25,6 +26,7 @@ const appPageElements = {
   [ROUTES.xray]: <XRay />,
   [ROUTES.gait]: <Gait />,
   [ROUTES.symptoms]: <Symptoms />,
+  [ROUTES.report]: <Report />,
   [ROUTES.reports]: <Reports />,
   [ROUTES.history]: <History />,
   [ROUTES.profile]: <Profile />,
