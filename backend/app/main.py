@@ -24,7 +24,7 @@ from .models import (
     ensure_patient_indexes,
     ensure_user_indexes,
 )
-from .routes import assessment, auth, patients
+from .routes import assessment, auth, directory, patients
 
 # Load backend/.env before reading any configuration values.
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
@@ -97,6 +97,12 @@ app.include_router(assessment.router, prefix="/api/assessment", tags=["assessmen
 app.include_router(
     assessment.history_router, prefix="/api/assessments", tags=["assessments"]
 )
+
+# Healthcare directory. GET /api/nearby-doctors geocodes free text with
+# Nominatim and reads nearby facilities from Overpass. Both are public
+# OpenStreetMap services, so the calls stay in the backend and the search
+# location is never written to MongoDB.
+app.include_router(directory.router, prefix="/api", tags=["directory"])
 
 
 @app.get("/", tags=["general"])
