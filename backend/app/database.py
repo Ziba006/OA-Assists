@@ -61,6 +61,13 @@ def get_client() -> AsyncMongoClient:
             get_mongo_uri(),
             serverSelectionTimeoutMS=SERVER_SELECTION_TIMEOUT_MS,
             uuidRepresentation="standard",
+            # MongoDB stores every date in UTC but hands it back as a naive
+            # datetime by default, so a response would be serialized without a
+            # timezone and every client would read it as its own local time. A
+            # stored "today" then appears on the wrong day. Asking for aware
+            # datetimes makes the API emit an explicit UTC offset, which is the
+            # only way a browser can place a record on the right date.
+            tz_aware=True,
         )
 
     return _client
