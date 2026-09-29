@@ -172,3 +172,149 @@
     animation: none;
   }
 }
+
+/* ==========================================================================
+   Dark theme
+
+   Scoped to `data-theme="dark"` on <html>, which src/hooks/useTheme.js sets
+   from the stored preference. Because the whole app is built on the @theme
+   tokens above, this restyles every page at once instead of each page needing
+   to know a theme exists.
+
+   Two things are deliberately NOT done here:
+
+   1. The dark sage panels (sidebar, mobile header, footers, the profile header)
+      are left exactly as designed. They already sit on --color-sage-900, which
+      is not redefined, so a dark theme cannot wash them out.
+
+   2. Text colours are overridden as utilities rather than by redefining their
+      tokens. Several of these colours are also backgrounds -- the primary
+      button is bg-plum-500, for instance -- so redefining the token would light
+      up the button as well as its label. Overriding `text-*` moves only the
+      text, which is what has to change.
+
+   The result is verified for contrast rather than assumed, see the Settings
+   page and its checks.
+   ========================================================================== */
+
+[data-theme='dark'] {
+  /* Surfaces and borders: the cream workspace becomes a dark one. */
+  --color-surface: #0e1310;
+  --color-surface-warm: #151b16;
+  --color-surface-muted: #1d251f;
+  --color-line: #293229;
+  --color-line-strong: #3a453b;
+
+  /* Body text: the light end of the neutrals. */
+  --color-ink-900: #eef2eb;
+  --color-ink-700: #c9d3c6;
+  --color-ink-500: #9da999;
+  --color-ink-400: #8b9789;
+
+  /* Tints behind badges and icon chips, darkened so light text reads on them. */
+  --color-sage-50: #1b241c;
+  --color-sage-100: #212c22;
+  --color-sage-200: #2a372b;
+
+  --color-plum-50: #241a26;
+  --color-plum-100: #2c2030;
+  --color-plum-200: #37283c;
+
+  --color-sky-50: #16212a;
+  --color-sky-100: #1b2833;
+  --color-sky-200: #22303d;
+
+  --color-peach-50: #261d16;
+  --color-peach-100: #2e231b;
+  --color-peach-200: #3a2c21;
+
+  --color-success-100: #16261a;
+  --color-warning-100: #2a2317;
+  --color-error-100: #2a1a1a;
+
+  /* Light-on-dark text values, kept apart from the tints above because those
+     are backgrounds. Using a tint as a text colour would be dark on dark. */
+  --theme-text-strong: #eaf0e6;
+  --theme-text: #c6d1c2;
+  --theme-text-plum: #e3c8da;
+  --theme-text-sky: #a8cadd;
+  --theme-text-peach: #dfb892;
+  --theme-text-success: #a6ccae;
+  --theme-text-warning: #d9ba7b;
+  --theme-text-error: #e3a3a3;
+}
+
+/* Dark text colours, redirected to their light equivalents. */
+[data-theme='dark'] .text-sage-900 {
+  color: var(--theme-text-strong);
+}
+
+[data-theme='dark'] .text-sage-800,
+[data-theme='dark'] .text-sage-700,
+[data-theme='dark'] .text-sage-600,
+[data-theme='dark'] .text-sage-500,
+[data-theme='dark'] .text-sage-400 {
+  color: var(--theme-text);
+}
+
+/* The light steps of the scales are backgrounds here, but they are also used as
+   label colours on the dark sage panels, where they must stay light. */
+[data-theme='dark'] .text-sage-300,
+[data-theme='dark'] .text-sage-200,
+[data-theme='dark'] .text-sage-100 {
+  color: var(--theme-text);
+}
+
+[data-theme='dark'] .text-plum-900,
+[data-theme='dark'] .text-plum-800,
+[data-theme='dark'] .text-plum-700,
+[data-theme='dark'] .text-plum-600,
+[data-theme='dark'] .text-plum-500 {
+  color: var(--theme-text-plum);
+}
+
+[data-theme='dark'] .text-plum-300,
+[data-theme='dark'] .text-plum-200,
+[data-theme='dark'] .text-plum-100 {
+  color: var(--theme-text-plum);
+}
+
+[data-theme='dark'] .text-sky-700,
+[data-theme='dark'] .text-sky-600,
+[data-theme='dark'] .text-sky-500,
+[data-theme='dark'] .text-sky-200,
+[data-theme='dark'] .text-sky-100,
+[data-theme='dark'] .text-sky-50 {
+  color: var(--theme-text-sky);
+}
+
+[data-theme='dark'] .text-peach-700,
+[data-theme='dark'] .text-peach-500,
+[data-theme='dark'] .text-peach-200,
+[data-theme='dark'] .text-peach-100 {
+  color: var(--theme-text-peach);
+}
+
+[data-theme='dark'] .text-success-700,
+[data-theme='dark'] .text-success-100 {
+  color: var(--theme-text-success);
+}
+
+[data-theme='dark'] .text-warning-700,
+[data-theme='dark'] .text-warning-100 {
+  color: var(--theme-text-warning);
+}
+
+[data-theme='dark'] .text-error-700,
+[data-theme='dark'] .text-error-100 {
+  color: var(--theme-text-error);
+}
+
+/* Hover and focus labels, which are separate utilities in Tailwind. */
+[data-theme='dark'] .hover\:text-sage-800:hover,
+[data-theme='dark'] .hover\:text-sage-900:hover,
+[data-theme='dark'] .focus-visible\:text-sage-800:focus-visible,
+[data-theme='dark'] .group-hover\:text-plum-600 {
+  color: var(--theme-text-strong);
+}
+

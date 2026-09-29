@@ -10,6 +10,29 @@
       content="OA Assist is an AI-assisted osteoarthritis assessment platform combining medical imaging, gait analysis and symptom questionnaires for preliminary assessment."
     />
     <title>OA Assist — AI-assisted osteoarthritis assessment</title>
+    <script>
+      // Applies the stored appearance before the first paint.
+      //
+      // This has to run here rather than in React: waiting for the app to mount
+      // would show the light theme first and then flip, which is jarring for
+      // anyone who chose dark. The key matches THEME_STORAGE_KEY in
+      // src/hooks/useTheme.js, which owns the value from then on.
+      ;(function () {
+        try {
+          var stored = localStorage.getItem('oa_assist_theme')
+          var dark =
+            stored === 'dark' ||
+            (stored !== 'light' &&
+              window.matchMedia &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches)
+          var theme = dark ? 'dark' : 'light'
+          document.documentElement.dataset.theme = theme
+          document.documentElement.style.colorScheme = theme
+        } catch (error) {
+          // Storage blocked: leave the default light theme in place.
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
