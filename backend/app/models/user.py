@@ -142,6 +142,58 @@ class UserPublic(BaseModel):
     updatedAt: datetime
 
 
+class UserProfileUpdate(BaseModel):
+    """Fields the signed-in user is allowed to change on their own profile.
+
+    Only the name is editable. Email is the login identity: it is the unique
+    key accounts are looked up by, it is baked into the JWT, and changing it
+    would mean verifying ownership of the new address and reissuing the token.
+    None of that exists, so the email is deliberately not editable rather than
+    pretending it is.
+    """
+
+    fullName: str = Field(
+        ...,
+        min_length=1,
+        max_length=120,
+        description="New display name for the account.",
+        examples=["Aarav Sharma"],
+    )
+
+    @field_validator("fullName")
+    @classmethod
+    def clean_full_name(cls, value: str) -> str:
+        """Trim extra spaces and reject names that are only whitespace."""
+        cleaned = " ".join(value.split())
+
+        if not cleaned:
+            raise ValueError("Full name is required.")
+
+        return cleaned
+
+
+class PasswordChangeRequest(BaseModel):
+    """Credentials for changing the signed-in user's own password.
+
+    The current password has to be sent so the account owner is proven rather
+    than whoever found an unlocked session. Neither field is ever logged,
+    stored, or returned.
+    """
+
+    current_password: str = Field(
+        ...,
+        min_length=1,
+        max_length=128,
+        description="The password currently on the account, verified against the stored hash.",
+    )
+    new_password: str = Field(
+        ...,
+        min_length=8,
+        max_length=128,
+        description="The replacement password. Same length rule as signup.",
+    )
+
+
 async def ensure_user_indexes() -> None:
     """Create the indexes the users collection relies on.
 

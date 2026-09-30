@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
+  CheckCircle2,
   ClipboardList,
   Footprints,
   History,
@@ -17,13 +18,23 @@ import {
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
+import FormDialog from '../components/ui/FormDialog'
+import Input from '../components/ui/Input'
+import PasswordInput from '../components/ui/PasswordInput'
 import PageHeader from '../components/ui/PageHeader'
 import { buttonClasses } from '../components/ui/buttonStyles'
 import { useAuth } from '../hooks/useAuth'
-import { getCurrentUser } from '../services/authService'
+import { changePassword, getCurrentUser, updateProfile } from '../services/authService'
 import { listAssessments } from '../services/assessmentService'
 import { listPatients, toPatientList } from '../services/patientService'
+import { setFlashMessage } from '../utils/flash'
 import { ROUTES } from '../routes'
+
+/**
+ * The minimum the backend already enforces on signup, reused here so the two
+ * forms cannot disagree about what a valid password is.
+ */
+const MIN_PASSWORD_LENGTH = 8
 
 /**
  * The signed-in account, not a patient.
@@ -99,35 +110,40 @@ function StatCard({ label, value, icon: Icon, accent }) {
   )
 }
 
-/** A placeholder for a setting the backend cannot do yet. */
-function ComingSoonButton({ label, description, icon: Icon }) {
+/**
+ * One account action, in the same shape the log-out row uses.
+ *
+ * This used to be a disabled "Coming Soon" placeholder; it is now a real
+ * button that opens the matching dialog.
+ */
+function ActionRow({ label, description, icon: Icon, actionLabel, onClick, disabled = false }) {
   return (
-    <div className="flex w-full flex-col items-start gap-3 rounded-2xl border border-dashed border-line-strong bg-surface-muted/60 p-5 text-left sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex w-full flex-col items-start gap-3 rounded-2xl border border-line bg-surface-warm p-5 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-start gap-3.5">
         <span
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-surface-warm text-ink-400"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-surface-muted text-ink-500"
           aria-hidden="true"
         >
           <Icon className="h-5 w-5" />
         </span>
 
         <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-semibold text-sage-900">{label}</h3>
-            <Badge tone="warning">Coming Soon</Badge>
-          </div>
+          <h3 className="text-sm font-semibold text-sage-900">{label}</h3>
           <p className="mt-1 text-sm leading-relaxed text-ink-500">{description}</p>
         </div>
       </div>
 
       <button
         type="button"
-        disabled
-        aria-disabled="true"
-        title={`${label} is not available yet`}
-        className={`${buttonClasses({ variant: 'secondary', size: 'sm' })} w-full cursor-not-allowed sm:w-auto`}
+        onClick={onClick}
+        disabled={disabled}
+        className={buttonClasses({
+          variant: 'secondary',
+          size: 'sm',
+          className: 'w-full sm:w-auto',
+        })}
       >
-        {label}
+        {actionLabel}
       </button>
     </div>
   )
@@ -139,7 +155,7 @@ function SkeletonBlock({ className = '' }) {
 
 export default function Profile() {
   const navigate = useNavigate()
-  const { isAuthenticated, isGuest, signOut } = useAuth()
+  const { isAuthenticated, isGuest, signOut, updateUser } = useAuth()
 
   // The account is read back from GET /api/auth/me so what is shown is what the
   // backend confirms for this token, on first load and after a refresh alike.
@@ -155,6 +171,31 @@ export default function Profile() {
   const [statsSettled, setStatsSettled] = useState(-1)
 
   const [confirmSignOut, setConfirmSignOut] = useState(false)
+  const [notice, setNotice] = useState('')
+
+  // A confirmation fades on its own; it is not something the user has to dismiss.
+  useEffect(() => {
+    if (!notice) return undefined
+
+    const timer = setTimeout(() => setNotice(''), 5000)
+
+    return () => clearTimeout(timer)
+  }, [notice])
+
+  // Edit profile
+  const [isEditing, setIsEditing] = useState(false)
+  const [nameDraft, setNameDraft] = useState('')
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [profileFormError, setProfileFormError] = useState('')
+  const [nameFieldError, setNameFieldError] = useState('')
+
+  // Change password
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [passwordDraft, setPasswordDraft] = useState({ current: '', next: '', confirm: '' })
+  const [isSavingPassword, setIsSavingPassword] = useState(false)
+  const [passwordFormError, setPasswordFormError] = useState('')
+  const [passwordFieldErrors, setPasswordFieldErrors] = useState({})
+
   const activeRequest = useRef(null)
 
   useEffect(
@@ -294,6 +335,134 @@ export default function Profile() {
     navigate(ROUTES.login)
   }
 
+  // ---- edit profile --------------------------------------------------------
+
+  const openProfileEditor = () => {
+    // Pre-filled from the account the backend just confirmed, never a guess.
+    setNameDraft(fullName)
+    setNameFieldError('')
+    setProfileFormError('')
+    setIsEditing(true)
+  }
+
+  const closeProfileEditor = () => {
+    if (isSavingProfile) return
+
+    setIsEditing(false)
+    setProfileFormError('')
+    setNameFieldError('')
+  }
+
+  const saveProfile = async () => {
+    if (isSavingProfile) return
+
+    // Collapse runs of whitespace the same way the backend validator does, so
+    // what is stored is what was typed without the padding.
+    const cleaned = nameDraft.split(/\s+/).filter(Boolean).join(' ')
+
+    if (!cleaned) {
+      setNameFieldError('Full name is required.')
+      return
+    }
+
+    setIsSavingProfile(true)
+    setProfileFormError('')
+    setNameFieldError('')
+
+    try {
+      const updated = await updateProfile({ fullName: cleaned })
+
+      // Update this page and the shared session together, so the sidebar and
+      // the header follow the new name without the app being reloaded.
+      setAccount((current) => (current ? { ...current, ...updated } : updated))
+      updateUser(updated)
+
+      setIsEditing(false)
+      setNotice('Profile updated successfully.')
+    } catch (error) {
+      // A field-level validation failure is reported on the field itself;
+      // anything else gets the general message.
+      const fieldMessage = error?.fieldErrors?.fullName
+
+      if (fieldMessage) {
+        setNameFieldError(fieldMessage.replace(/^Value error,\s*/i, ''))
+      } else {
+        setProfileFormError(error?.message || 'Unable to update your profile. Please try again.')
+      }
+    } finally {
+      setIsSavingProfile(false)
+    }
+  }
+
+  // ---- change password -----------------------------------------------------
+
+  const openPasswordEditor = () => {
+    setPasswordDraft({ current: '', next: '', confirm: '' })
+    setPasswordFieldErrors({})
+    setPasswordFormError('')
+    setIsChangingPassword(true)
+  }
+
+  const closePasswordEditor = () => {
+    if (isSavingPassword) return
+
+    setIsChangingPassword(false)
+    setPasswordFormError('')
+    setPasswordFieldErrors({})
+    // Drop the typed passwords rather than keeping them in memory behind a
+    // closed dialog.
+    setPasswordDraft({ current: '', next: '', confirm: '' })
+  }
+
+  const savePassword = async () => {
+    if (isSavingPassword) return
+
+    const { current, next, confirm } = passwordDraft
+    const fieldErrors = {}
+
+    if (!current) fieldErrors.current = 'Current password is required.'
+    if (!next) fieldErrors.next = 'New password is required.'
+    else if (next.length < MIN_PASSWORD_LENGTH) {
+      fieldErrors.next = `New password must be at least ${MIN_PASSWORD_LENGTH} characters.`
+    }
+
+    if (!confirm) fieldErrors.confirm = 'Please confirm your new password.'
+    else if (next && confirm !== next) fieldErrors.confirm = 'New passwords do not match.'
+
+    setPasswordFieldErrors(fieldErrors)
+
+    // Nothing is sent until every local rule passes, so an obvious typo costs
+    // no request.
+    if (Object.keys(fieldErrors).length > 0) return
+
+    setIsSavingPassword(true)
+    setPasswordFormError('')
+
+    try {
+      await changePassword({ currentPassword: current, newPassword: next })
+
+      // The password has changed, so the session is ended and a fresh sign-in
+      // is required. The note explaining why travels through a one-shot flash
+      // rather than router state, because ending the session makes the route
+      // guard redirect to the login page by itself.
+      setIsChangingPassword(false)
+      setPasswordDraft({ current: '', next: '', confirm: '' })
+      setFlashMessage('Your password was changed. Please log in again.')
+      signOut()
+      navigate(ROUTES.login)
+    } catch (error) {
+      if (error?.status === 400) {
+        setPasswordFormError('Current password is incorrect.')
+      } else {
+        setPasswordFormError(
+          error?.message || 'Unable to change your password. Please try again.',
+        )
+      }
+    } finally {
+      setIsSavingPassword(false)
+    }
+  }
+
   return (
     <div className="container-page py-10 sm:py-12">
       <PageHeader
@@ -305,6 +474,16 @@ export default function Profile() {
 
       {/* Guests have no account behind the session, so there is no identity to
           show. Saying so is honest; a blank avatar would not be. */}
+      {notice ? (
+        <div
+          role="status"
+          className="animate-fade-in mt-6 flex items-center gap-2.5 rounded-xl border border-success-500/30 bg-success-100 px-4 py-3"
+        >
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-success-700" aria-hidden="true" />
+          <p className="text-sm text-success-700">{notice}</p>
+        </div>
+      ) : null}
+
       {isGuest ? (
         <Card className="mt-8 border-warning-100 bg-warning-100/50 p-5">
           <p className="text-sm leading-relaxed text-sage-800">
@@ -359,8 +538,13 @@ export default function Profile() {
       {account ? (
         <>
           {/* The identity panel. Deliberately the strongest thing on the page,
-              set on the dark sage ground the sidebar uses. */}
-          <Card className="mt-8 overflow-hidden border-0 bg-sage-900 p-0 shadow-lift">
+              set on the dark sage ground the sidebar uses.
+
+              This is a plain element rather than a `Card` on purpose: `Card`
+              carries its own `bg-surface-warm`, and a background class passed
+              alongside it loses the cascade, which left this panel light with
+              cream text on it. */}
+          <div className="mt-8 overflow-hidden rounded-2xl border border-sage-800 bg-sage-900 shadow-lift">
             <div className="flex flex-col items-center gap-6 p-6 text-center sm:flex-row sm:items-center sm:gap-7 sm:p-8 sm:text-left">
               <span
                 className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-cream/20 bg-cream/10 text-2xl font-semibold tracking-tight text-cream"
@@ -392,7 +576,7 @@ export default function Profile() {
                 </div>
               </div>
             </div>
-          </Card>
+          </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             {/* Account Information */}
@@ -482,16 +666,22 @@ export default function Profile() {
               </p>
 
               <div className="mt-5 space-y-3">
-                <ComingSoonButton
+                <ActionRow
                   label="Edit Profile"
-                  description="Profile editing will be available soon."
+                  description="Update your name and profile details."
                   icon={Pencil}
+                  actionLabel="Edit Profile"
+                  onClick={openProfileEditor}
+                  disabled={isSavingProfile || isSavingPassword}
                 />
 
-                <ComingSoonButton
+                <ActionRow
                   label="Change Password"
-                  description="Changing your password will be available soon."
+                  description="Update your account password."
                   icon={ShieldCheck}
+                  actionLabel="Change Password"
+                  onClick={openPasswordEditor}
+                  disabled={isSavingProfile || isSavingPassword}
                 />
 
                 <div className="flex w-full flex-col items-start gap-3 rounded-2xl border border-line bg-surface-warm p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -538,6 +728,105 @@ export default function Profile() {
         onConfirm={handleSignOut}
         onCancel={() => setConfirmSignOut(false)}
       />
+
+      <FormDialog
+        isOpen={isEditing}
+        title="Edit Profile"
+        description="Update the details shown on your account."
+        error={profileFormError}
+        confirmLabel="Save Changes"
+        isBusy={isSavingProfile}
+        isConfirmDisabled={!nameDraft.trim()}
+        onConfirm={saveProfile}
+        onCancel={closeProfileEditor}
+      >
+        <div className="space-y-4">
+          <Input
+            id="profile-full-name"
+            label="Full Name"
+            value={nameDraft}
+            onChange={(event) => {
+              setNameDraft(event.target.value)
+              if (nameFieldError) setNameFieldError('')
+            }}
+            error={nameFieldError}
+            autoComplete="name"
+            required
+          />
+
+          {/* Read only on purpose: the email is the login identity, it is inside
+              the token, and the backend does not accept it for update. */}
+          <Input
+            id="profile-email"
+            label="Email"
+            type="email"
+            value={email}
+            onChange={() => {}}
+            disabled
+            autoComplete="email"
+            hint="Your email identifies the account and cannot be changed here."
+          />
+        </div>
+      </FormDialog>
+
+      <FormDialog
+        isOpen={isChangingPassword}
+        title="Change Password"
+        description="You will be asked to sign in again after the password changes."
+        error={passwordFormError}
+        confirmLabel="Change Password"
+        isBusy={isSavingPassword}
+        onConfirm={savePassword}
+        onCancel={closePasswordEditor}
+      >
+        <div className="space-y-4">
+          <PasswordInput
+            id="current-password"
+            label="Current Password"
+            value={passwordDraft.current}
+            onChange={(value) => {
+              setPasswordDraft((draft) => ({ ...draft, current: value }))
+              if (passwordFieldErrors.current) {
+                setPasswordFieldErrors((errors) => ({ ...errors, current: undefined }))
+              }
+            }}
+            error={passwordFieldErrors.current}
+            autoComplete="current-password"
+            required
+          />
+
+          <PasswordInput
+            id="new-password"
+            label="New Password"
+            value={passwordDraft.next}
+            onChange={(value) => {
+              setPasswordDraft((draft) => ({ ...draft, next: value }))
+              if (passwordFieldErrors.next) {
+                setPasswordFieldErrors((errors) => ({ ...errors, next: undefined }))
+              }
+            }}
+            error={passwordFieldErrors.next}
+            hint={`Use at least ${MIN_PASSWORD_LENGTH} characters.`}
+            autoComplete="new-password"
+            required
+          />
+
+          <PasswordInput
+            id="confirm-new-password"
+            label="Confirm New Password"
+            value={passwordDraft.confirm}
+            onChange={(value) => {
+              setPasswordDraft((draft) => ({ ...draft, confirm: value }))
+              if (passwordFieldErrors.confirm) {
+                setPasswordFieldErrors((errors) => ({ ...errors, confirm: undefined }))
+              }
+            }}
+            error={passwordFieldErrors.confirm}
+            autoComplete="new-password"
+            required
+          />
+        </div>
+      </FormDialog>
     </div>
   )
 }

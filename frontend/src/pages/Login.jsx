@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AlertCircle, Loader2, LogIn, ShieldCheck } from 'lucide-react'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
@@ -8,6 +8,7 @@ import { buttonClasses } from '../components/ui/buttonStyles'
 import { ApiError, isApiConfigured } from '../services/api'
 import { login } from '../services/authService'
 import { useAuth } from '../hooks/useAuth'
+import { takeFlashMessage } from '../utils/flash'
 import { ROUTES } from '../routes'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -16,6 +17,9 @@ const initialForm = { email: '', password: '' }
 
 export default function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
+  // Read once on mount: the note is consumed by being read.
+  const [flashMessage] = useState(() => takeFlashMessage())
   const { signIn } = useAuth()
   const [form, setForm] = useState(initialForm)
   const [fieldErrors, setFieldErrors] = useState({})
@@ -120,6 +124,18 @@ export default function Login() {
           <Badge tone={isApiConfigured() ? 'sage' : 'warning'} className="mt-5">
             {isApiConfigured() ? 'Connected to OA Assist API' : 'API address not configured'}
           </Badge>
+
+          {/* Carried in from the Profile page after a password change. Read once and
+              cleared, so it disappears on the next visit. */}
+          {location.state?.message || flashMessage ? (
+            <div
+              role="status"
+              className="mt-6 flex gap-3 rounded-xl border border-success-500/30 bg-success-100 px-4 py-3"
+            >
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success-700" aria-hidden="true" />
+              <p className="text-sm text-success-700">{location.state?.message || flashMessage}</p>
+            </div>
+          ) : null}
 
           {formError ? (
             <div

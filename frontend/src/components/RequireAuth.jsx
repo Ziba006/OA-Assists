@@ -25,5 +25,10 @@ export default function RequireAuth({ allowGuest = false, children }) {
   if (isAuthenticated) return children
   if (allowGuest && isGuest) return children
 
-  return <Navigate to={ROUTES.login} replace state={{ from: location.pathname }} />
+  // Any state already travelling with the location is kept, and `from` is
+  // merged in rather than replacing the lot. Signing out from inside an app page
+  // sends the person here too, and without the merge this redirect would throw
+  // away a message that the page had just attached -- for example the note
+  // telling someone their password changed and to sign in again.
+  return <Navigate to={ROUTES.login} replace state={{ ...location.state, from: location.pathname }} />
 }

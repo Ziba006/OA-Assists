@@ -28,7 +28,7 @@ export default function FeatureCard({
         </Badge>
       ) : null}
 
-      {note ? <p className="mt-3 text-xs leading-relaxed text-ink-400">{note}</p> : null}
+      {note ? <p className="mt-3 text-xs leading-relaxed text-ink-500">{note}</p> : null}
 
       {actionTo ? (
         <Link

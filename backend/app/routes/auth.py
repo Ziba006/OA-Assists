@@ -1,19 +1,25 @@
 """Authentication routes for OA Assist.
 
-Signup and login exist right now. Tokens, sessions and password resets are not
-implemented yet.
+Signup, login and reading the signed-in user exist now, together with the two
+self-service account actions: updating your own profile and changing your own
+password. Both act only on the account behind the presented JWT. Tokens, server
+side sessions and password resets are not implemented yet.
 """
 
 from __future__ import annotations
 
+from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, status
-from pymongo.errors import DuplicateKeyError
+from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError, PyMongoError
 from pydantic import BaseModel, Field
 
 from ..dependencies import get_current_user
 from ..models.user import (
+    PasswordChangeRequest,
     UserCreate,
     UserLogin,
+    UserProfileUpdate,
     UserPublic,
     UserSession,
     get_users_collection,
@@ -180,3 +186,111 @@ async def read_current_user(current_user: UserSession = Depends(get_current_user
     hash are never returned.
     """
     return current_user
+
+
+@router.patch(
+    "/me",
+    response_model=UserSession,
+    status_code=status.HTTP_200_OK,
+    summary="Update the currently authenticated user's own profile",
+)
+async def update_current_user(
+    payload: UserProfileUpdate,
+    current_user: UserSession = Depends(get_current_user),
+) -> UserSession:
+    """Protected route: changes only the account behind the presented token.
+
+    Which user is being changed comes entirely from the verified JWT. There is
+    no id in the request body or the path, so one account cannot edit another:
+    there is simply nothing to point it at.
+
+    Only the name is writable. The email is not accepted here at all, so a
+    caller cannot attempt to move an account to an address it does not control.
+
+    The response is the same safe `UserSession` shape as `GET /api/auth/me`, so
+    the client learns the new name without the password or its hash ever being
+    serialised.
+    """
+    users = get_users_collection()
+
+    try:
+        updated = await users.find_one_and_update(
+            {"_id": ObjectId(current_user.id)},
+            {"$set": {"fullName": payload.fullName, "updatedAt": utc_now()}},
+            return_document=ReturnDocument.AFTER,
+        )
+    except (DuplicateKeyError, PyMongoError) as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The profile could not be saved right now. Please try again.",
+        ) from error
+
+    if updated is None:
+        # The token was valid but the account has since been removed.
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return UserSession(
+        id=current_user.id,
+        fullName=updated["fullName"],
+        email=updated["email"],
+    )
+
+
+@router.post(
+    "/change-password",
+    status_code=status.HTTP_200_OK,
+    summary="Change the currently authenticated user's password",
+)
+async def change_password(
+    payload: PasswordChangeRequest,
+    current_user: UserSession = Depends(get_current_user),
+) -> dict:
+    """Protected route: changes only the password of the account behind the token.
+
+    The current password is verified against the stored bcrypt hash, so an
+    unlocked session on its own is not enough to take the account over.
+
+    **Status codes.** A wrong current password returns `400`, not `401`. On this
+    API a `401` means "this token is not usable" and the client reacts to it by
+    clearing the session and sending the person to the login page. A mistyped
+    password is not that: the session is still perfectly valid, so answering
+    `401` would log somebody out for a typo. `400` with a clear message reports
+    the failure without touching the session.
+
+    The plain passwords are used only inside this function: one to verify, one
+    to hash. Neither is written anywhere, logged, or returned, and the stored
+    hash is replaced rather than accumulated.
+
+    The JWT is stateless and carries only the account id and email, so it is
+    not invalidated by this change. The client signs out after a successful
+    change anyway, which is the safer default; see the Profile page.
+    """
+    users = get_users_collection()
+
+    user = await users.find_one({"_id": ObjectId(current_user.id)}, {"password": 1})
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not verify_password(payload.current_password, user.get("password", "")):
+        # Deliberately says nothing else about the account, and gives no hint
+        # about the new password either.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect.",
+        )
+
+    await users.update_one(
+        {"_id": ObjectId(current_user.id)},
+        {"$set": {"password": hash_password(payload.new_password), "updatedAt": utc_now()}},
+    )
+
+    return {"message": "Password changed successfully."}

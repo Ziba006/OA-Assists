@@ -39,8 +39,11 @@
   --color-line-strong: #d5cdbe;
   --color-ink-900: #202820;
   --color-ink-700: #3a463c;
-  --color-ink-500: #667066;
-  --color-ink-400: #8a938a;
+  /* ink-500 and ink-400 both have to clear 4.5:1 on the darker light surfaces
+     (--color-surface-muted and --color-surface-warm), so they sit closer
+     together than a naive scale would. Hierarchy is carried by size and weight. */
+  --color-ink-500: #5b655b;
+  --color-ink-400: #525c52;
 
   /* Semantic */
   --color-success-100: #e8f0e8;
@@ -48,7 +51,7 @@
   --color-success-700: #4e6b53;
   --color-warning-100: #f7efe0;
   --color-warning-500: #c69a4a;
-  --color-warning-700: #8f6f31;
+  --color-warning-700: #856529;
   --color-error-100: #f6e8e8;
   --color-error-500: #b85c5c;
   --color-error-700: #8d4444;
@@ -307,6 +310,51 @@
 
 [data-theme='dark'] .text-error-700,
 [data-theme='dark'] .text-error-100 {
+  color: var(--theme-text-error);
+}
+
+/* Alpha variants.
+ *
+ * The tints above are darkened for dark mode because they are mostly badge and
+ * chip backgrounds, but the same light steps are also used as label colours on
+ * the dark sage panels -- including with an opacity modifier, as in
+ * `text-plum-100/70` in the footer and `text-sage-200/80` in the sidebar.
+ *
+ * Those are separate class names, so the exact selectors above do not match
+ * them and they were rendering dark on dark. Matching on the class substring
+ * covers every opacity variant at once instead of listing them one by one, so
+ * a new `text-plum-200/90` cannot silently slip through later. */
+[data-theme='dark'] [class*='text-sage-100/'],
+[data-theme='dark'] [class*='text-sage-200/'],
+[data-theme='dark'] [class*='text-sage-300/'] {
+  color: var(--theme-text);
+}
+
+[data-theme='dark'] [class*='text-plum-100/'],
+[data-theme='dark'] [class*='text-plum-200/'],
+[data-theme='dark'] [class*='text-plum-300/'] {
+  color: var(--theme-text-plum);
+}
+
+[data-theme='dark'] [class*='text-sky-100/'],
+[data-theme='dark'] [class*='text-sky-200/'] {
+  color: var(--theme-text-sky);
+}
+
+[data-theme='dark'] [class*='text-peach-100/'],
+[data-theme='dark'] [class*='text-peach-200/'] {
+  color: var(--theme-text-peach);
+}
+
+[data-theme='dark'] [class*='text-success-100/'] {
+  color: var(--theme-text-success);
+}
+
+[data-theme='dark'] [class*='text-warning-100/'] {
+  color: var(--theme-text-warning);
+}
+
+[data-theme='dark'] [class*='text-error-100/'] {
   color: var(--theme-text-error);
 }
 

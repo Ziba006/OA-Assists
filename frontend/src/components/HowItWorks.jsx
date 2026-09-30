@@ -50,7 +50,7 @@ export default function HowItWorks() {
                 <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-sage-900 text-plum-300">
                   <Icon className="h-5 w-5" aria-hidden="true" />
                 </span>
-                <span className="text-2xl font-semibold tracking-tight text-sage-300">
+                <span className="text-2xl font-semibold tracking-tight text-sage-600">
                   {number}
                 </span>
               </div>

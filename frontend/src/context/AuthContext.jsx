@@ -101,6 +101,23 @@ export function AuthProvider({ children }) {
   }, [])
 
   /**
+   * Replace the session user after the backend confirms a profile change.
+   *
+   * The stored copy is refreshed too, so the name shown in the sidebar, the
+   * navbar and the mobile header all follow the edit without the page having to
+   * be reloaded. Only the same three public fields are kept, so this can never
+   * be used to push anything else into the session.
+   */
+  const updateUser = useCallback((nextUser) => {
+    const sessionUser = toSessionUser(nextUser)
+
+    if (!sessionUser) return
+
+    updateStoredUser(sessionUser)
+    setUser(sessionUser)
+  }, [])
+
+  /**
    * Log out. The token is removed from this browser only; there is no server
    * side session to end, because the backend issues stateless JWTs.
    */
@@ -130,11 +147,12 @@ export function AuthProvider({ children }) {
       // True while GET /api/auth/me is in flight after a page load.
       isAuthenticating: status === AUTH_STATUS.restoring,
       signIn,
+      updateUser,
       signOut,
       startGuestSession,
       endGuestSession,
     }),
-    [user, status, isGuest, signIn, signOut, startGuestSession, endGuestSession],
+    [user, status, isGuest, signIn, updateUser, signOut, startGuestSession, endGuestSession],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

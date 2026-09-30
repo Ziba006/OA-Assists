@@ -44,7 +44,10 @@ export default function Navbar() {
   }, [isOpen])
 
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-cream/90 backdrop-blur-md">
+    // `bg-surface` rather than `bg-cream`: the two are the same cream in the
+    // light theme, so this looks unchanged there, but `surface` follows the
+    // theme, so the header does not stay a pale bar once dark mode is on.
+    <header className="sticky top-0 z-50 border-b border-line bg-surface/90 backdrop-blur-md">
       <nav aria-label="Main" className="container-page flex h-18 items-center justify-between gap-4">
         <Logo />
 
