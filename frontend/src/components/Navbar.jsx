@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { Menu, X } from 'lucide-react'
+import { Menu, Moon, Sun, X } from 'lucide-react'
 import Logo from './Logo'
 import { buttonClasses } from './ui/buttonStyles'
 import { HOME_SECTIONS, ROUTES } from '../routes'
+import useTheme from '../hooks/useTheme'
 
 const navLinks = [
   { label: 'Home', to: ROUTES.home },
@@ -18,6 +19,39 @@ function linkClasses({ isActive }) {
       ? 'bg-plum-50 text-plum-700 ring-1 ring-plum-200'
       : 'text-ink-700 hover:bg-sage-50 hover:text-sage-800',
   ].join(' ')
+}
+
+/**
+ * The appearance switch, shown on the public header.
+ *
+ * It is the same control the Settings page uses: `useTheme` is the only place
+ * theme state lives, so this neither duplicates that logic nor disagrees with it.
+ * A visitor who switches theme here arrives at the signed-in app already in the
+ * theme they chose, because the choice is stored under one shared key.
+ */
+function ThemeToggle() {
+  const { isDark, toggleTheme } = useTheme()
+  const action = isDark ? 'Switch to light mode' : 'Switch to dark mode'
+
+  return (
+    <button
+      type="button"
+      onClick={toggleTheme}
+      aria-pressed={isDark}
+      aria-label={action}
+      title={action}
+      className={[
+        'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-colors duration-200',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-plum-500',
+        isDark
+          ? 'border-plum-300 bg-plum-50 text-plum-700 ring-1 ring-plum-200'
+          : 'border-line-strong bg-surface-warm text-ink-700 hover:border-plum-300 hover:bg-plum-50 hover:text-sage-800',
+      ].join(' ')}
+    >
+      {/* Shows the theme the click switches to, not the one currently on. */}
+      {isDark ? <Sun className="h-5 w-5" aria-hidden="true" /> : <Moon className="h-5 w-5" aria-hidden="true" />}
+    </button>
+  )
 }
 
 export default function Navbar() {
@@ -72,6 +106,15 @@ export default function Navbar() {
           >
             Get Started
           </Link>
+        </div>
+
+        {/*
+          One instance of the switch for every viewport, so it stays reachable
+          without opening the mobile menu. It sits last in the bar on desktop,
+          beside the login controls, and takes the hamburger's place on mobile.
+        */}
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
         </div>
 
         <button

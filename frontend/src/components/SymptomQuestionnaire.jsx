@@ -96,7 +96,23 @@ function OptionPill({ type, name, value, checked, onChange, children }) {
         className="peer sr-only"
       />
       <span
-        className="flex h-full items-center justify-center rounded-xl border border-line-strong bg-surface-warm px-3.5 py-2.5 text-center text-sm text-ink-700 transition-colors duration-200 hover:border-sage-400 hover:bg-sage-50 peer-checked:border-plum-500 peer-checked:bg-plum-50 peer-checked:font-medium peer-checked:text-plum-900 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-plum-700"
+        /*
+          The selected state is built from tokens that already flip for dark
+          mode, so it reads correctly in both themes without a dark-only override:
+            bg-plum-100   a pale plum in light, a lifted plum in dark, and
+                          clearly distinct from the unselected surface-warm in both
+            text-ink-900   redefined by the theme itself, so it is dark on the
+                          pale plum in light mode and light on the dark plum in
+                          dark mode
+            border-plum-400  one step of plum that clears 3:1 against the plum
+                          fill in dark mode while staying soft in light
+
+          `text-sage-900` was the obvious-looking choice and is wrong here:
+          --color-sage-900 is deliberately NOT redefined for dark mode so the
+          sidebar and footer panels keep their own background, which left the
+          selected label dark on dark and effectively invisible.
+        */
+        className="flex h-full items-center justify-center rounded-xl border border-line-strong bg-surface-warm px-3.5 py-2.5 text-center text-sm text-ink-700 transition-colors duration-200 hover:border-sage-400 hover:bg-sage-50 peer-checked:border-plum-400 peer-checked:bg-plum-100 peer-checked:font-medium peer-checked:text-ink-900 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-plum-700"
       >
         {children}
       </span>

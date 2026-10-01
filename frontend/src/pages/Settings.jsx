@@ -98,9 +98,17 @@ function Toggle({ isOn, onToggle, label }) {
         isOn ? 'border-plum-700 bg-plum-700' : 'border-line-strong bg-surface-muted'
       }`}
     >
+      {/*
+        The knob needs to contrast with the track it sits on, and the two tracks
+        are opposites: a dark plum when on, a pale surface when off. `bg-cream`
+        is light in both themes, so it only works for the on state, and a pale
+        knob on the pale off track was effectively invisible. `bg-ink-900` is
+        redefined for dark mode, so it is dark on the light track and light on
+        the dark one, which is what each state needs.
+      */}
       <span
-        className={`inline-block h-5 w-5 rounded-full bg-cream shadow-sm transition-transform duration-200 ${
-          isOn ? 'translate-x-6' : 'translate-x-1'
+        className={`inline-block h-5 w-5 rounded-full shadow-sm transition-transform duration-200 ${
+          isOn ? 'translate-x-6 bg-cream' : 'translate-x-1 bg-ink-900'
         }`}
         aria-hidden="true"
       />

@@ -205,7 +205,7 @@ function SectionHeading({ icon: Icon, tone, title, subtitle }) {
         <h2 className="text-xl font-semibold tracking-tight text-sage-900 sm:text-2xl">
           {title}
         </h2>
-        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-500">{subtitle}</p>
+        <p className="mt-1.5 max-w-2xl text-[0.95rem] leading-relaxed text-ink-500">{subtitle}</p>
       </div>
     </div>
   )
@@ -244,7 +244,7 @@ function GroupCard({ title, items, kind = 'check', icon: Icon, tone = 'green' })
             <Icon className="h-3.5 w-3.5" />
           </span>
         ) : null}
-        <h3 className="text-[0.8rem] font-semibold uppercase tracking-[0.14em] text-ink-700">
+        <h3 className="text-[0.85rem] font-semibold uppercase tracking-[0.14em] text-ink-700">
           {title}
         </h3>
       </div>
@@ -257,7 +257,7 @@ function GroupCard({ title, items, kind = 'check', icon: Icon, tone = 'green' })
           return (
             <li
               key={label}
-              className={`flex gap-3 text-sm leading-relaxed text-ink-700 ${alignment}`}
+              className={`flex gap-3 text-[0.95rem] leading-relaxed text-ink-700 ${alignment}`}
             >
               {RowIcon ? (
                 <span
@@ -286,7 +286,7 @@ function TipCard({ tone, label, children }) {
         className={`mt-0.5 h-4.5 w-4.5 shrink-0 ${tone === 'blue' ? 'text-sky-600' : 'text-sage-600'}`}
         aria-hidden="true"
       />
-      <p className="text-sm leading-relaxed text-ink-700">
+      <p className="text-[0.95rem] leading-relaxed text-ink-700">
         <span className="font-semibold text-ink-900">{label}: </span>
         {children}
       </p>
@@ -299,7 +299,7 @@ function SafetyNote({ children }) {
   return (
     <div className="flex gap-3.5 rounded-2xl border border-warning-500/30 bg-warning-100/50 px-5 py-4">
       <AlertTriangle className="mt-0.5 h-4.5 w-4.5 shrink-0 text-warning-700" aria-hidden="true" />
-      <p className="text-sm leading-relaxed text-ink-700">{children}</p>
+      <p className="text-[0.95rem] leading-relaxed text-ink-700">{children}</p>
     </div>
   )
 }
@@ -327,7 +327,7 @@ function ExplainerCard({ item, isOpen, onToggle }) {
         </h3>
       </div>
 
-      <p className="mt-3.5 text-sm leading-relaxed text-ink-500">{item.summary}</p>
+      <p className="mt-3.5 text-[0.95rem] leading-relaxed text-ink-500">{item.summary}</p>
 
       <div className="mt-auto pt-4">
         <button
@@ -351,7 +351,7 @@ function ExplainerCard({ item, isOpen, onToggle }) {
         {isOpen ? (
           <p
             id={panelId}
-            className="animate-fade-in mt-3 border-l-2 border-plum-200 pl-3.5 text-sm leading-relaxed text-ink-500"
+            className="animate-fade-in mt-3 border-l-2 border-plum-200 pl-3.5 text-[0.95rem] leading-relaxed text-ink-500"
           >
             {item.detail}
           </p>
@@ -481,7 +481,7 @@ export default function Guidance() {
               >
                 <Footprints className="h-3.5 w-3.5" />
               </span>
-              <h3 className="text-[0.8rem] font-semibold uppercase tracking-[0.14em] text-ink-700">
+              <h3 className="text-[0.85rem] font-semibold uppercase tracking-[0.14em] text-ink-700">
                 Activities to consider
               </h3>
             </div>

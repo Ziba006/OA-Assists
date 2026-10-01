@@ -110,6 +110,40 @@
   }
 }
 
+/* The sweep drawn over a submitted X-ray while the model runs.
+   Only the indicator moves: the image underneath is never touched, and the sweep
+   is absolutely positioned, so nothing about the image's size or layout changes
+   while it plays. */
+@keyframes oa-scan-sweep {
+  0% {
+    transform: translateY(0%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+/* The slow breathe on the status dot. */
+@keyframes oa-pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
@@ -162,6 +196,61 @@
   .animate-slide-in {
     animation: oa-slide-in 0.25s ease-out both;
   }
+
+  /* X-ray scan sweep.
+
+     A full-height, absolutely positioned layer holding a faint plum wash and a
+     thin lit line. It translates top to bottom and repeats, so the reading is
+     "scanning" without the image ever being scaled, blurred or replaced.
+
+     The X-ray viewer panel is `bg-sage-900` in both themes (X-rays are read on
+     dark), so plum-300 is the token that clears the 4.5:1 contrast bar against
+     it in both. */
+  .oa-scan-sweep {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 100%;
+    pointer-events: none;
+    will-change: transform;
+    animation: oa-scan-sweep 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  }
+
+  /* The wash that trails just above the line. */
+  .oa-scan-sweep::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    background: linear-gradient(
+      to top,
+      color-mix(in srgb, var(--color-plum-300) 26%, transparent),
+      transparent
+    );
+  }
+
+  /* The line itself. */
+  .oa-scan-sweep::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--color-plum-300);
+    box-shadow: 0 0 12px 1px color-mix(in srgb, var(--color-plum-300) 55%, transparent);
+  }
+
+  .oa-pulse-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background-color: var(--color-plum-500);
+    animation: oa-pulse-soft 1.8s ease-in-out infinite;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -172,6 +261,18 @@
   .animate-fade-up,
   .animate-fade-in,
   .animate-slide-in {
+    animation: none;
+  }
+
+  /* Park the sweep mid-image as a static progress rule rather than removing the
+     indicator entirely, so the scanning state is still legible. */
+  .oa-scan-sweep {
+    animation: none;
+    transform: translateY(50%);
+    opacity: 1;
+  }
+
+  .oa-pulse-dot {
     animation: none;
   }
 }
@@ -201,39 +302,56 @@
    ========================================================================== */
 
 [data-theme='dark'] {
-  /* Surfaces and borders: the cream workspace becomes a dark one. */
-  --color-surface: #0e1310;
-  --color-surface-warm: #151b16;
-  --color-surface-muted: #1d251f;
-  --color-line: #293229;
-  --color-line-strong: #3a453b;
+  /* Surfaces and borders.
+   *
+   * A deliberate three-step ladder, so a card reads as its own surface rather
+   * than as a slightly different black:
+   *   surface        -> the page itself, the darkest step
+   *   surface-warm   -> cards and content containers, clearly lighter
+   *   surface-muted  -> nested panels inside a card, one step lighter again
+   * All three stay dark sage-green; only the spacing between them changed. */
+  --color-surface: #0f1511;
+  --color-surface-warm: #1b231d;
+  --color-surface-muted: #242e26;
+  /* Subtle, but still a visible edge against the surface behind it. */
+  --color-line: #333e35;
+  --color-line-strong: #47534a;
 
   /* Body text: the light end of the neutrals. */
   --color-ink-900: #eef2eb;
   --color-ink-700: #c9d3c6;
-  --color-ink-500: #9da999;
-  --color-ink-400: #8b9789;
+  --color-ink-500: #a3b0a0;
+  --color-ink-400: #97a494;
 
-  /* Tints behind badges and icon chips, darkened so light text reads on them. */
-  --color-sage-50: #1b241c;
-  --color-sage-100: #212c22;
-  --color-sage-200: #2a372b;
+  /* Tints behind badges and icon chips, darkened so light text reads on them,
+     and lifted far enough to separate from --color-surface-warm. */
+  --color-sage-50: #1f2a21;
+  --color-sage-100: #26322a;
+  --color-sage-200: #313f34;
 
-  --color-plum-50: #241a26;
-  --color-plum-100: #2c2030;
-  --color-plum-200: #37283c;
+  --color-plum-50: #291e2c;
+  --color-plum-100: #332538;
 
-  --color-sky-50: #16212a;
-  --color-sky-100: #1b2833;
-  --color-sky-200: #22303d;
+  /* The scan status dot sits on the plum-tinted analysis panel, which is dark
+     here. plum-500 is only 3.1:1 against plum-50 at that size, so lift it to
+     plum-300; the sweep itself needs no override because it always sits on the
+     dark sage-900 viewer panel. */
+  [data-theme='dark'] .oa-pulse-dot {
+    background-color: var(--color-plum-300);
+  }
+  --color-plum-200: #3f2e45;
 
-  --color-peach-50: #261d16;
-  --color-peach-100: #2e231b;
-  --color-peach-200: #3a2c21;
+  --color-sky-50: #1a2730;
+  --color-sky-100: #202f3b;
+  --color-sky-200: #283847;
 
-  --color-success-100: #16261a;
-  --color-warning-100: #2a2317;
-  --color-error-100: #2a1a1a;
+  --color-peach-50: #2c2219;
+  --color-peach-100: #352920;
+  --color-peach-200: #433327;
+
+  --color-success-100: #1b2e20;
+  --color-warning-100: #31291b;
+  --color-error-100: #311f1f;
 
   /* Light-on-dark text values, kept apart from the tints above because those
      are backgrounds. Using a tint as a text colour would be dark on dark. */
@@ -364,5 +482,84 @@
 [data-theme='dark'] .focus-visible\:text-sage-800:focus-visible,
 [data-theme='dark'] .group-hover\:text-plum-600 {
   color: var(--theme-text-strong);
+}
+
+/* ==========================================================================
+   Selected, checked and active controls
+
+   Selected states are styled in the components, not here, using tokens that
+   are already redefined for dark mode (`plum-50`/`plum-100` for the selected
+   fill, `sage-900` for the selected label). That is deliberate: Tailwind state
+   variants compile to their own class names -- `peer-checked:bg-plum-50` is
+   literally that string -- and it is present in the class list whether or not
+   the control is selected, so a `[class*='peer-checked:...']` rule here would
+   apply the selected styling to *every* option. Matching on state from outside
+   the component is what made the selection invisible in the first place.
+
+   What is left below is the part that genuinely cannot be done per component:
+   ring colours, focus rings and native select options, where the class names
+   are static and so safe to match on.
+   ========================================================================== */
+
+/* Ring colours.
+ *
+ * A `ring-sage-200` or `ring-plum-200` border is one of the ways a selected item
+ * is marked, and those steps are dark in the dark palette, so the ring vanished
+ * and left the selection looking like a slightly tinted box. Each family keeps
+ * its own accent here -- these are the existing --theme-text-* values, not new
+ * colours -- so a selected nav item still reads as sage or plum, just visibly. */
+[data-theme='dark'] [class*='ring-plum-'] {
+  --tw-ring-color: var(--theme-text-plum);
+}
+
+[data-theme='dark'] [class*='ring-sage-'] {
+  --tw-ring-color: var(--theme-text);
+}
+
+[data-theme='dark'] [class*='ring-sky-'] {
+  --tw-ring-color: var(--theme-text-sky);
+}
+
+[data-theme='dark'] [class*='ring-peach-'] {
+  --tw-ring-color: var(--theme-text-peach);
+}
+
+[data-theme='dark'] [class*='ring-warning-'] {
+  --tw-ring-color: var(--theme-text-warning);
+}
+
+[data-theme='dark'] [class*='ring-error-'] {
+  --tw-ring-color: var(--theme-text-error);
+}
+
+[data-theme='dark'] [class*='ring-success-'] {
+  --tw-ring-color: var(--theme-text-success);
+}
+
+[data-theme='dark'] [class*='ring-cream'],
+[data-theme='dark'] [class*='ring-white'] {
+  --tw-ring-color: var(--theme-text-strong);
+}
+
+[data-theme='dark'] [class*='ring-ink-'],
+[data-theme='dark'] [class*='ring-black'] {
+  --tw-ring-color: var(--theme-text-strong);
+}
+
+/* Focus rings. The plum and sage outline steps are dark enough to all but
+   vanish against a dark surface, so every focus ring moves to the light plum
+   text value. Only three outline colours are in use (plum-500, plum-700,
+   sky-600) and none of them carry meaning, so nothing is lost. */
+[data-theme='dark'] [class*='focus-visible:outline-'],
+[data-theme='dark'] [class*='focus:outline-'] {
+  outline-color: var(--theme-text-plum);
+}
+
+/* Native select popups are painted by the browser, not by these tokens, so the
+   options are given explicit colours. Without this a selected option in the
+   open list can render with the UA's own highlight against a theme surface. */
+[data-theme='dark'] option {
+  background-color: var(--color-surface-warm);
+  color: var(--color-ink-900);
 }
 

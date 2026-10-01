@@ -22,6 +22,7 @@ import PatientSelect from '../components/PatientSelect'
 import { buttonClasses } from '../components/ui/buttonStyles'
 import { useAuth } from '../hooks/useAuth'
 import { usePatient } from '../hooks/usePatient'
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion'
 import { ROUTES } from '../routes'
 import { ApiError } from '../services/api'
 import { deleteAssessment, listAssessments } from '../services/assessmentService'
@@ -124,6 +125,73 @@ function describePatientError(error) {
   }
 
   return error.message
+}
+
+// The stages the request passes through, phrased as work being done rather than
+// as measurements. No timings, probabilities or scores are claimed here: the
+// animation has no knowledge of the model's internals, and the assessment that
+// follows comes only from `analyzeXray`.
+const SCAN_MESSAGES = [
+  'Preparing the X-ray for analysis…',
+  'Examining the submitted image…',
+  'Processing the preliminary assessment…',
+  'Finishing up the analysis…',
+]
+
+const SCAN_MESSAGE_INTERVAL_MS = 2600
+
+/**
+ * The scanning state shown in place of the Analyze button while a request is in
+ * flight.
+ *
+ * Deliberately contains no numbers: a progress bar or percentage would imply a
+ * known duration the client does not have. The line sweeping the image and the
+ * rotating stage message are the honest way to show work in progress.
+ *
+ * The image itself is untouched. The sweep is an absolutely positioned overlay
+ * in its own layer, so the preview never scales, reflows or gets re-rendered,
+ * and there is no layout shift when analysis starts or finishes.
+ */
+function AnalysisScanState() {
+  const [messageIndex, setMessageIndex] = useState(0)
+  const prefersReducedMotion = usePrefersReducedMotion()
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setMessageIndex((current) => (current + 1) % SCAN_MESSAGES.length)
+    }, SCAN_MESSAGE_INTERVAL_MS)
+
+    return () => window.clearInterval(timer)
+  }, [])
+
+  return (
+    <div
+      // `busy` tells assistive tech the content here is updating on its own, so
+      // it is announced once rather than on every stage change.
+      role="status"
+      aria-busy="true"
+      className="mt-5 rounded-2xl border border-plum-200 bg-plum-50 px-5 py-5 text-center"
+    >
+      <div className="flex items-center justify-center gap-2.5">
+        {!prefersReducedMotion ? (
+          <span className="oa-pulse-dot shrink-0" aria-hidden="true" />
+        ) : null}
+        <p className="text-sm font-semibold text-sage-900">Analysing your X-ray…</p>
+      </div>
+
+      <p className="mt-1.5 text-sm leading-relaxed text-ink-500">
+        We are looking for patterns associated with knee osteoarthritis. This
+        usually takes a few moments.
+      </p>
+
+      <p className="mt-3 flex items-center justify-center gap-2 text-xs font-medium text-plum-700">
+        <ScanLine className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        {/* The stage text is visual texture on top of the status above, so it is
+            hidden from assistive tech rather than re-announced every few seconds. */}
+        <span aria-hidden="true">{SCAN_MESSAGES[messageIndex]}</span>
+      </p>
+    </div>
+  )
 }
 
 export default function XRay() {
@@ -591,6 +659,16 @@ export default function XRay() {
                   alt={`Preview of the selected X-ray: ${file.name}`}
                   className="max-h-[420px] w-full object-contain"
                 />
+
+                {isAnalyzing ? (
+                  // Purely decorative, so it carries no accessible name: the
+                  // scanning state itself is described by the status panel below
+                  // the image. `pointer-events-none` keeps the sweep from ever
+                  // intercepting a click meant for the Remove button.
+                  <div className="absolute inset-0" aria-hidden="true">
+                    <div className="oa-scan-sweep" />
+                  </div>
+                ) : null}
               </div>
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -618,24 +696,18 @@ export default function XRay() {
                 </button>
               </div>
 
-              <button
-                type="button"
-                onClick={handleAnalyze}
-                disabled={isAnalyzing}
-                className={buttonClasses({ variant: 'primary', className: 'mt-5 w-full' })}
-              >
-                {isAnalyzing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    Analyzing...
-                  </>
-                ) : (
-                  <>
-                    <ScanLine className="h-4 w-4" aria-hidden="true" />
-                    Analyze X-Ray
-                  </>
-                )}
-              </button>
+              {isAnalyzing ? (
+                <AnalysisScanState />
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleAnalyze}
+                  className={buttonClasses({ variant: 'primary', className: 'mt-5 w-full' })}
+                >
+                  <ScanLine className="h-4 w-4" aria-hidden="true" />
+                  Analyze X-Ray
+                </button>
+              )}
             </div>
           )}
 

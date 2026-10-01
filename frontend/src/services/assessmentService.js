@@ -32,6 +32,10 @@ function toAssessment(raw) {
       : null,
     // Recorded answers, kept exactly as stored. Nothing is derived from them.
     symptoms: raw.symptoms ? { ...raw.symptoms } : null,
+    // Gait is not implemented, so this is always null today. It is read from the
+    // response rather than assumed, so the report can show a real gait finding
+    // the day the module exists without anyone having to write a placeholder.
+    gait: raw.gait ? { ...raw.gait } : null,
     created_at: raw.created_at,
   }
 }
